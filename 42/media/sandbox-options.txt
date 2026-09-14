@@ -1,0 +1,9 @@
+VERSION = 1,
+
+option CookItForMe.Debug
+{
+    type = boolean,
+    default = false,
+    page = CookItForMe,
+    translation = CookItForMe_Debug,
+}

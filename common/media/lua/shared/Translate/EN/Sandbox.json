@@ -1,0 +1,5 @@
+{
+    "Sandbox_CookItForMe": "Cook It For Me",
+    "Sandbox_CookItForMe_Debug": "Debug logging",
+    "Sandbox_CookItForMe_Debug_tooltip": "Writes the mod's detailed log to console.txt: every step of the cooking chain, scanned containers, recipe validation and picked ingredients. Off by default - enable only for troubleshooting."
+}
