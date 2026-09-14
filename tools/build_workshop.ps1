@@ -1,23 +1,26 @@
-# build_workshop.ps1 — собирает папку мода для загрузки в Steam Workshop.
+# build_workshop.ps1 - assembles the mod folder for the Steam Workshop upload.
 #
-# Запуск из корня репозитория:
+# Run from anywhere:
 #     powershell -ExecutionPolicy Bypass -File tools\build_workshop.ps1
 #
-# Результат: %USERPROFILE%\Zomboid\Workshop\CookItForMe\
+# Result: %USERPROFILE%\Zomboid\Workshop\CookItForMe\
 #
-# ВАЖНО: скрипт НЕ загружает ничего в Steam. Он только раскладывает файлы так, как ждёт
-# игровой загрузчик. Сама загрузка — вручную: запустить PZ -> Workshop -> Create/Update
-# Item -> выбрать эту папку -> Upload. Без запущенной игры обновить Workshop нельзя:
-# загрузка идёт через Steam UGC, который дёргает движок изнутри игры.
+# NOTE: this script does NOT upload anything to Steam. It only lays the files out the
+# way the in-game uploader expects. The upload itself is manual: launch PZ -> Workshop ->
+# Create/Update Item -> pick this folder -> Upload. There is no headless way: uploads go
+# through Steam UGC, which the game engine drives from inside the game.
 #
-# Раскладка, которую ждёт загрузчик:
+# Layout the uploader expects:
 #     %USERPROFILE%\Zomboid\Workshop\CookItForMe\
-#         preview.png            <- 256x256 PNG, строго в КОРНЕ элемента, не в Contents
+#         preview.png            <- 256x256 PNG, at the ITEM ROOT, not inside Contents
 #         workshop.txt           <- title/description/tags/visibility
 #         Contents\
 #             mods\CookItForMe\
 #                 42\            <- mod.info, poster.png, icon.png, media\
-#                 common\        <- переводы
+#                 common\        <- translations
+#
+# Keep this file ASCII-only: Windows PowerShell 5.1 reads .ps1 as ANSI unless it has a
+# UTF-8 BOM, so non-ASCII text here breaks the parser on a non-English locale.
 
 $ErrorActionPreference = "Stop"
 
@@ -34,12 +37,12 @@ $SrcWorkshopTxt = Join-Path $Src "workshop\workshop.txt"
 $SrcPreview     = Join-Path $Src "workshop\preview.png"
 $SrcPoster      = Join-Path $Src "42\poster.png"
 
-if (-not (Test-Path $SrcWorkshopTxt)) { Fail "нет $SrcWorkshopTxt" }
+if (-not (Test-Path $SrcWorkshopTxt)) { Fail "missing $SrcWorkshopTxt" }
 
-# Steam-овский id элемента. Игра дописывает его в workshop.txt после первой загрузки.
-# Сборка пересоздаёт папку с нуля, поэтому id надо перенести — иначе следующая загрузка
-# предложит создать НОВЫЙ элемент вместо обновления, и в Workshop появится дубль,
-# который потом придётся удалять через поддержку Steam.
+# Steam item id. The game appends it to workshop.txt after the first upload. The build
+# recreates the folder from scratch, so the id has to be carried over - otherwise the next
+# upload would create a NEW item instead of updating the existing one, leaving a duplicate
+# that only Steam support can remove.
 $PrevId = ""
 foreach ($candidate in @((Join-Path $Out "workshop.txt"), $SrcWorkshopTxt)) {
     if (-not $PrevId -and (Test-Path $candidate)) {
@@ -52,14 +55,14 @@ if (Test-Path $Out) { Remove-Item $Out -Recurse -Force }
 $ModOut = Join-Path $Out "Contents\mods\$ModName"
 New-Item -ItemType Directory -Path $ModOut -Force | Out-Null
 
-# Версионные папки мода копируются как есть — ничего лишнее в Contents попасть не должно
+# Version folders are copied as-is; nothing else may land inside Contents
 foreach ($d in @("42", "common")) {
     $from = Join-Path $Src $d
-    if (-not (Test-Path $from)) { Fail "нет папки $from" }
+    if (-not (Test-Path $from)) { Fail "missing folder $from" }
     Copy-Item $from -Destination (Join-Path $ModOut $d) -Recurse -Force
 }
 
-# Метаданные Workshop лежат в корне элемента
+# Workshop metadata lives at the item root
 Copy-Item $SrcWorkshopTxt (Join-Path $Out "workshop.txt") -Force
 if (Test-Path $SrcPreview) {
     Copy-Item $SrcPreview (Join-Path $Out "preview.png") -Force
@@ -67,9 +70,9 @@ if (Test-Path $SrcPreview) {
     Copy-Item $SrcPoster (Join-Path $Out "preview.png") -Force
 }
 
-# Возвращаем id в собранный файл и, если его там не было, в исходник — чтобы он пережил
-# любые следующие сборки и не потерялся, если папку Workshop удалят.
-# Пишем через .NET, а не Add-Content: та в PowerShell 5.1 добавляет BOM и портит UTF-8.
+# Put the id back into the built file and, if it was missing, into the source file, so it
+# survives future builds and is not lost when the Workshop folder is deleted.
+# Written via .NET: Add-Content on PowerShell 5.1 prepends a BOM and corrupts UTF-8.
 if ($PrevId) {
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     $outTxt = Join-Path $Out "workshop.txt"
@@ -78,42 +81,42 @@ if ($PrevId) {
     }
     if (-not (Select-String -Path $SrcWorkshopTxt -Pattern '^id=' -List)) {
         [System.IO.File]::AppendAllText($SrcWorkshopTxt, "$PrevId`r`n", $utf8NoBom)
-        Write-Host "id $PrevId из прошлой загрузки дописан в workshop\workshop.txt"
+        Write-Host "carried over item id from previous upload: $PrevId"
     }
 }
 
-# Мусор, который ломает загрузку: на macOS это .DS_Store, на Windows — Thumbs.db и desktop.ini
+# Junk that breaks the upload: .DS_Store on macOS, Thumbs.db / desktop.ini on Windows
 Get-ChildItem -Path $Out -Recurse -Force -File |
     Where-Object { $_.Name -in @(".DS_Store", "Thumbs.db", "desktop.ini") } |
     Remove-Item -Force
 
 foreach ($f in @("workshop.txt", "preview.png", "Contents\mods\$ModName\42\mod.info")) {
     $p = Join-Path $Out $f
-    if (-not (Test-Path $p)) { Fail "не собралось: $p" }
+    if (-not (Test-Path $p)) { Fail "not built: $p" }
 }
 
-# Загрузчик ожидает превью 256x256 (валидирует сам через validatePreviewImage — предупреждаем)
+# The uploader wants a 256x256 preview (it validates it itself via validatePreviewImage)
 try {
     Add-Type -AssemblyName System.Drawing
     $img = [System.Drawing.Image]::FromFile((Join-Path $Out "preview.png"))
     $w = $img.Width; $h = $img.Height
     $img.Dispose()
     if ($w -ne 256 -or $h -ne 256) {
-        Warn "внимание: preview.png ${w}x${h}, а загрузчик ожидает 256x256"
+        Warn "warning: preview.png is ${w}x${h}, the uploader expects 256x256"
     }
 } catch {
-    Warn "внимание: не удалось проверить размер preview.png ($_)"
+    Warn "warning: could not check preview.png size ($_)"
 }
 
 if (-not (Select-String -Path (Join-Path $Out "workshop.txt") -Pattern '^visibility=' -List)) {
-    Warn "внимание: в workshop.txt нет visibility"
+    Warn "warning: workshop.txt has no visibility"
 }
 if (Select-String -Path (Join-Path $Out "workshop.txt") -Pattern '^id=' -List) {
-    Write-Host "запись уже опубликована (в workshop.txt есть id — загрузчик обновит существующий элемент)"
+    Write-Host "already published (workshop.txt has an id - the uploader will update the existing item)"
 }
 
 Write-Host ""
-Write-Host "готово: $Out" -ForegroundColor Green
-Write-Host "дальше: запустить PZ -> Workshop -> Create/Update Item -> выбрать эту папку -> Upload"
-Write-Host "напоминание: не держи мод включённым одновременно из Zomboid\mods и из Zomboid\Workshop —"
-Write-Host "             после публикации Steam скачает свою копию, и в менеджере модов будет два одинаковых мода"
+Write-Host "done: $Out" -ForegroundColor Green
+Write-Host "next: launch PZ -> Workshop -> Create/Update Item -> pick this folder -> Upload"
+Write-Host "reminder: do not keep the mod enabled from both Zomboid\mods and Zomboid\Workshop -"
+Write-Host "          after publishing, Steam downloads its own copy and the mod list shows two entries"
