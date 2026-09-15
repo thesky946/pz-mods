@@ -41,8 +41,17 @@ foreach ($entry in @(
     }
 }
 
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'build_workshop.ps1')
+$releaseRoot = Join-Path ([IO.Path]::GetTempPath()) ('CookItForMe-release-' + [guid]::NewGuid().ToString('N'))
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'build_workshop.ps1') -DestinationRoot $releaseRoot
 if ($LASTEXITCODE -ne 0) { throw "Workshop build failed ($LASTEXITCODE)." }
+
+# Upload an isolated snapshot, never the directory currently used by the dev game.
+$releaseItem = Join-Path $releaseRoot 'CookItForMe'
+$manifest.content = Join-Path $releaseItem 'Contents'
+$manifest.preview = Join-Path $releaseItem 'preview.png'
+$manifest.description = Join-Path $releaseItem 'description.bbcode'
+$manifestPath = Join-Path $releaseItem 'mod-manifest.json'
+[IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
 
 $uploadArgs = @('upload', '--manifest-path', $manifestPath)
 if ($PatchNote) { $uploadArgs += @('--patchnote', $PatchNote) }

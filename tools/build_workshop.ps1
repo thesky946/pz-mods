@@ -20,14 +20,21 @@
 # Keep this file ASCII-only: Windows PowerShell 5.1 reads .ps1 as ANSI unless it has a
 # UTF-8 BOM, so non-ASCII text here breaks the parser on a non-English locale.
 
+[CmdletBinding()]
+param([string]$DestinationRoot, [switch]$SkipChecks)
 $ErrorActionPreference = "Stop"
+if (-not $SkipChecks) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Checks failed; build stopped.' }
+}
 
 function Fail($msg) { Write-Host $msg -ForegroundColor Red; exit 1 }
 function Warn($msg) { Write-Host $msg -ForegroundColor Yellow }
 
 $Src      = Split-Path -Parent $PSScriptRoot
 $ModName  = "CookItForMe"
-$DestRoot = if ($env:ZOMBOID_WORKSHOP_DIR) { $env:ZOMBOID_WORKSHOP_DIR }
+$DestRoot = if ($DestinationRoot) { $DestinationRoot }
+            elseif ($env:ZOMBOID_WORKSHOP_DIR) { $env:ZOMBOID_WORKSHOP_DIR }
             else { Join-Path $env:USERPROFILE "Zomboid\Workshop" }
 $Out      = Join-Path $DestRoot $ModName
 
@@ -81,6 +88,7 @@ if (Test-Path $SrcPreview) {
 # Steam Workshop validates a 256x256 PNG. Keep the high-resolution source artwork in
 # the repository and scale only the copied upload asset.
 $OutPreview = Join-Path $Out "preview.png"
+$tempPreview = "$OutPreview.tmp"
 Add-Type -AssemblyName System.Drawing
 $previewImage = [System.Drawing.Image]::FromFile($OutPreview)
 try {
@@ -155,6 +163,6 @@ if (Select-String -Path (Join-Path $Out "workshop.txt") -Pattern '^id=' -List) {
 
 Write-Host ""
 Write-Host "done: $Out" -ForegroundColor Green
-Write-Host "next: run SteamUploader upload --manifest-path $Src\mod-manifest.json"
+Write-Host "next: use tools\publish_workshop.ps1 to upload a validated isolated snapshot"
 Write-Host "reminder: do not keep the mod enabled from both Zomboid\mods and Zomboid\Workshop -"
 Write-Host "          after publishing, Steam downloads its own copy and the mod list shows two entries"

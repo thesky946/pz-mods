@@ -1,5 +1,28 @@
 # Known limits, and what is actually proven
 
+## Local CookItForMe watcher changes
+
+The local CLI validates a complete snapshot, copies a batch before reloading, orders
+local dependencies before importers, and serializes requests to the shared mailbox.
+Static literal require calls are tracked; dynamic require names are not.
+New/deleted/renamed Lua modules pause hot reload and require a full game + watcher
+restart after synchronization. This is a conservative local policy, not proof that
+the engine can never load a new module live.
+
+RELOAD ACK means the bridge acknowledged reloadLuaFile. The bridge's pcall cannot
+detect warnings swallowed by the engine or verify runtime behavior. Existing
+closures, active actions, UI instances and event registrations may retain old code.
+Test changes with a new cooking run and reopened UI; use a restart for structural
+or event-registration changes. Only one watcher process should own a bridge mailbox.
+
+Local verification: npm test exercises batching, dependency ordering, missing imports,
+serialization and a simulated bridge. Live-game verification of this updated watcher
+confirmed that absolute installed-file reload updates the require cache; relative-path
+reload did execute a file but left the absolute-key cached return stale. Before/after
+runtime probes verified Actions/Executor revision values without restarting PZ.
+Use absolute installed paths. This does not prove all gameplay behavior after reload.
+The upstream observations below retain their original scope.
+
 This file exists so you can tell our measurements apart from our hopes. Build tested:
 **42.20.0 (a2947723ca)**, Windows client + Linux dedicated server.
 

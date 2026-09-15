@@ -1,18 +1,11 @@
 -- Cook It For Me: сканер окружения и сбор еды (singleplayer, B42)
 
 local Scanner = {}
+local Catalog = require "CookItForMe_Dishes"
 
 -- Посуда для блюд на плите (уточнено по media/scripts B42):
 -- суп/рагу: Pot, PotForged; жаркое: Pan, PanForged, GridlePan; овощное жаркое: RoastingPan.
 -- Saucepan в B42 для супа не подходит (только паста/рис через WaterSaucepan*).
-local COOKWARE = {
-    ["Base.Pot"] = true,
-    ["Base.PotForged"] = true,
-    ["Base.Pan"] = true,
-    ["Base.PanForged"] = true,
-    ["Base.GridlePan"] = true,
-    ["Base.RoastingPan"] = true,
-}
 
 local function isSinkObject(o)
     if instanceof(o, "IsoWorldInventoryObject") then return false end
@@ -23,10 +16,11 @@ end
 -- scanAround(player, radius) -> { stove, sink, containers = {ItemContainer...}, floorItems = {InventoryItem...} }
 -- radius == 0: 3x3 вокруг игрока + canReachTo, как у proximity inventory в ванили.
 function Scanner.scanAround(player, radius)
+    radius = math.max(1, math.min(30, math.floor(tonumber(radius) or 1)))
     local cx, cy, cz = math.floor(player:getX()), math.floor(player:getY()), player:getZ()
     local cell = getCell()
     local playerSquare = player:getCurrentSquare()
-    local result = { stove = nil, sink = nil, containers = {}, floorItems = {} }
+    local result = { stove = nil, sink = nil, containers = {}, floorItems = {}, stoves = {}, sinks = {} }
 
     local squares = {}
     for dy = -radius, radius do
@@ -44,14 +38,57 @@ function Scanner.scanAround(player, radius)
         end
     end
 
+    -- Flood through walkable tiles; inspect furniture only from a reachable tile.
+    -- Runtime pathfinding still validates doors/obstacles that change after preview.
+    local reachable, frontier = {}, { playerSquare }
+    if playerSquare then reachable[playerSquare] = true end
+    local head = 1
+    while head <= #frontier do
+        local from = frontier[head]; head = head + 1
+        for dy = -1, 1 do
+            for dx = -1, 1 do
+                local x, y = from:getX() + dx, from:getY() + dy
+                if math.abs(x - cx) <= radius and math.abs(y - cy) <= radius then
+                    local next = cell:getGridSquare(x, y, cz)
+                    if next and not reachable[next] and next:isFree(false) and from:canReachTo(next) then
+                        reachable[next] = true; frontier[#frontier + 1] = next
+                    end
+                end
+            end
+        end
+    end
+    local accessible = {}
+    for _, sq in ipairs(squares) do
+        local canAccess = reachable[sq]
+        for dy = -1, 1 do
+            for dx = -1, 1 do
+                local neighbor = cell:getGridSquare(sq:getX() + dx, sq:getY() + dy, cz)
+                if neighbor and reachable[neighbor] and neighbor:canReachTo(sq) then canAccess = true end
+            end
+        end
+        if canAccess then accessible[#accessible + 1] = sq end
+    end
+    squares = accessible
+    table.sort(squares, function(a, b)
+        local ad = (a:getX() - cx)^2 + (a:getY() - cy)^2
+        local bd = (b:getX() - cx)^2 + (b:getY() - cy)^2
+        return ad < bd
+    end)
     for _, sq in ipairs(squares) do
         local objs = sq:getObjects()
         for i = 0, objs:size() - 1 do
             local o = objs:get(i)
             if instanceof(o, "IsoStove") and not o:isMicrowave() then
-                if not result.stove then result.stove = o end
+                if not o:isBroken() and o:getContainer() and o:getContainer():isPowered()
+                    and AdjacentFreeTileFinder.Find(sq, player) then
+                    result.stoves[#result.stoves + 1] = o
+                    if not result.stove then result.stove = o end
+                end
             elseif isSinkObject(o) then
-                if not result.sink then result.sink = o end
+                if o:hasFluid() and AdjacentFreeTileFinder.Find(sq, player) then
+                    result.sinks[#result.sinks + 1] = o
+                    if not result.sink then result.sink = o end
+                end
             elseif o:getContainerCount() > 0 and not instanceof(o, "IsoDeadBody") then
                 -- объект может иметь несколько контейнеров (холодильник = fridge + freezer)
                 for c = 0, o:getContainerCount() - 1 do
@@ -97,10 +134,22 @@ end
 function Scanner.collectFood(player, scan)
     local out = { foods = {}, spices = {}, cookware = {} }
 
-    local function addItem(item)
-        if item == nil then return end
+    local seenItems, seenContainers = {}, {}
+    local addItem
+    local function visit(container)
+        if not container or seenContainers[container] then return end
+        seenContainers[container] = true
+        local items = container:getItems()
+        for i = 0, items:size() - 1 do addItem(items:get(i)) end
+    end
+    addItem = function(item)
+        if item == nil or seenItems[item] then return end
+        seenItems[item] = true
+        if item.IsInventoryContainer and item:IsInventoryContainer() then
+            visit(item:getInventory()); return
+        end
         if not instanceof(item, "Food") then
-            if COOKWARE[item:getFullType()] then
+            if Catalog.isCookware(item:getFullType()) then
                 table.insert(out.cookware, item)
             end
             return
@@ -118,22 +167,9 @@ function Scanner.collectFood(player, scan)
         table.insert(out.foods, item)
     end
 
-    for _, cont in ipairs(scan.containers) do
-        local items = cont:getItems()
-        for i = 0, items:size() - 1 do
-            addItem(items:get(i))
-        end
-    end
-
-    for _, item in ipairs(scan.floorItems) do
-        addItem(item)
-    end
-
-    local invItems = player:getInventory():getItems()
-    for i = 0, invItems:size() - 1 do
-        addItem(invItems:get(i))
-    end
-
+    for _, cont in ipairs(scan.containers) do visit(cont) end
+    for _, item in ipairs(scan.floorItems) do addItem(item) end
+    visit(player:getInventory())
     return out
 end
 

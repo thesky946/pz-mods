@@ -12,8 +12,9 @@ local LOG_TAG = "[" .. CookItForMe.ID .. "]"
 
 CookItForMe.DEFAULTS = {
     strategy = "max",     -- "max" | "min" | "hunger"
+    completionSound = true,
     radius = 1,           -- радиус поиска в тайлах; 0 = как proximity inventory (3x3)
-    frozenPenalty = 0.5,  -- штраф времени готовки за каждый замороженный ингредиент
+    frozenPenalty = 0.5,  -- максимальный штраф при полностью замороженном составе
     debugFast = false,    -- скрытая опция: форсировать готовность через 5 секунд нагрева
     panelW = 560,         -- размер окна плана (сохраняется при закрытии)
     panelH = 560,
@@ -29,7 +30,32 @@ function CookItForMe.getSettings(player)
     for k, v in pairs(CookItForMe.DEFAULTS) do
         if s[k] == nil then s[k] = v end
     end
+    if s.strategy ~= "max" and s.strategy ~= "min" and s.strategy ~= "hunger" then s.strategy = "max" end
+    local radius = tonumber(s.radius)
+    s.radius = radius and radius == radius and math.floor(math.max(0, math.min(30, radius))) or 1
+    s.completionSound = s.completionSound ~= false
+    s.frozenPenalty = math.max(0, math.min(2, tonumber(s.frozenPenalty) or 0.5))
     return s
+end
+
+-- Always retain the last transitions/errors; normal detailed logs remain optional.
+function CookItForMe.diagnostic(message)
+    CookItForMe.history = CookItForMe.history or {}
+    local history = CookItForMe.history
+    history[#history + 1] = tostring(message)
+    if #history > 40 then table.remove(history, 1) end
+    print(LOG_TAG .. " " .. tostring(message))
+end
+
+function CookItForMe.withFrozenRecipe(recipe, callback)
+    local previous = recipe:isAllowFrozenItem()
+    local ok, value = pcall(function()
+        recipe:setAllowFrozenItem(true)
+        return callback()
+    end)
+    recipe:setAllowFrozenItem(previous)
+    if not ok then error(value) end
+    return value
 end
 
 function CookItForMe.saveSettings(player, settings)
@@ -69,11 +95,14 @@ function CookItForMe.log(msg, ...)
 end
 
 -- Маркер загрузки + самопроверка локализации (кусок 1)
-local function onGameBoot()
+function CookItForMe.onGameBoot()
     CookItForMe.log("boot OK")
     CookItForMe.log("loc test: " .. tostring(getText("UI_CookItForMe_ContextMenu")))
 end
 
-Events.OnGameBoot.Add(onGameBoot)
+if not CookItForMe.bootRegistered then
+    CookItForMe.bootRegistered = true
+    Events.OnGameBoot.Add(function() CookItForMe.onGameBoot() end)
+end
 
 return CookItForMe

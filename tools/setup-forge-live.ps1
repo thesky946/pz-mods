@@ -41,7 +41,9 @@ if (-not (Test-Path -LiteralPath (Join-Path $ForgeRoot 'node_modules\luaparse'))
 $bridgeSource = Join-Path $ForgeRoot 'mod\ForgeLiveBridge'
 if (-not (Test-Path -LiteralPath $bridgeSource)) { throw "Forge Live bridge missing: $bridgeSource" }
 New-Item -ItemType Directory -Path $BridgeTarget -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $bridgeSource '*') -Destination $BridgeTarget -Recurse -Force
+Get-ChildItem -LiteralPath $bridgeSource -Force | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination $BridgeTarget -Recurse -Force
+}
 
 $json = @{
     mods = @(@{

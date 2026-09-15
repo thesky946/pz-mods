@@ -37,16 +37,13 @@ function CookItForMe.debugPreview(player)
     for _, s in ipairs(picked.spices) do table.insert(spiceNames, s:getDisplayName()) end
     log("SPICES: " .. #spiceNames .. " -> " .. table.concat(spiceNames, ", "))
 
-    local penaltyTime = FoodLogic.frozenPenaltyTime(100, settings.frozenPenalty, picked.frozenCount)
+    local penaltyTime = FoodLogic.frozenPenaltyTime(100, settings.frozenPenalty, picked.frozenCount, #picked.items)
     log(string.format("FROZEN TIME: base=100 -> %.0f (penalty=%.1f, frozen=%d)",
         penaltyTime, settings.frozenPenalty, picked.frozenCount))
 end
 
 local function onCookingClick(player)
     local p = getSpecificPlayer(player)
-    local settings = CookItForMe.getSettings(p)
-    local scan = Scanner.scanAround(p, settings.radius)
-    local collected = Scanner.collectFood(p, scan)
 
     -- табы всех блюд; недоступные помечаем failKey (показываются красными)
     local entries = {}
@@ -58,7 +55,7 @@ local function onCookingClick(player)
     CookItForMePlanUI:new(player, entries)
 end
 
-local function onFillWorldObjectContextMenu(player, context, worldobjects, test)
+function CookItForMe.onFillWorldObjectContextMenu(player, context, worldobjects, test)
     if test and ISWorldObjectContextMenu.Test then return true end
 
     local playerObj = getSpecificPlayer(player)
@@ -73,5 +70,5 @@ end
 -- Регистрация один раз: reloadLua() не должен плодить пункты меню
 if not CookItForMe.clientEventsRegistered then
     CookItForMe.clientEventsRegistered = true
-    Events.OnFillWorldObjectContextMenu.Add(onFillWorldObjectContextMenu)
+    Events.OnFillWorldObjectContextMenu.Add(function(...) return CookItForMe.onFillWorldObjectContextMenu(...) end)
 end

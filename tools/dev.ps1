@@ -50,21 +50,8 @@ function Sync-Mod {
 
 function Run-Tests {
     if ($SkipTests) { return }
-    $lua = Get-Command lua -ErrorAction SilentlyContinue
-    $luaExe = if ($lua) { $lua.Source } else { $null }
-    if (-not $lua) {
-        $bundledLua = Join-Path $env:LOCALAPPDATA 'Programs\Lua\bin\lua.exe'
-        if (Test-Path -LiteralPath $bundledLua) { $luaExe = $bundledLua }
-    }
-    if (-not $luaExe) {
-        Write-Host 'Lua is not in PATH; structure and JSON checked, offline tests skipped.' -ForegroundColor Yellow
-        return
-    }
-    Push-Location (Join-Path $ProjectRoot 'tests')
-    try {
-        & $luaExe 'test_foodlogic.lua'
-        if ($LASTEXITCODE -ne 0) { Fail 'Offline Lua tests failed.' }
-    } finally { Pop-Location }
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1')
+    if ($LASTEXITCODE -ne 0) { throw 'Checks failed; sync stopped.' }
 }
 
 function Start-Game {
@@ -76,8 +63,8 @@ function Show-ReloadReminder {
     Write-Host 'Ready: files synced.' -ForegroundColor Cyan
 }
 
-Sync-Mod
 Run-Tests
+Sync-Mod
 Show-ReloadReminder
 if ($Launch) { Start-Game }
 if (-not $Watch) { exit 0 }
@@ -107,8 +94,8 @@ try {
             while ($queuedEvent = Wait-Event -Timeout 0) {
                 Remove-Event -EventIdentifier $queuedEvent.EventIdentifier
             }
-            Sync-Mod
             Run-Tests
+            Sync-Mod
             Show-ReloadReminder
         }
     }

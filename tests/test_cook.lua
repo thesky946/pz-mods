@@ -1,0 +1,129 @@
+package.path = "../42/media/lua/shared/?.lua;../42/media/lua/client/?.lua;./?.lua;" .. package.path
+local Env = require "support/cook_env"
+local function eq(a, b, message) assert(a == b, (message or "mismatch") .. ": " .. tostring(a) .. " ~= " .. tostring(b)) end
+
+for _, dish in ipairs({ "Soup", "Stew", "Stir fry", "Roasted Vegetables" }) do
+    for _, strategy in ipairs({ "max", "min", "hunger" }) do
+        local e = Env.new(dish)
+        CookItForMe.getSettings(e.player).strategy = strategy
+        local plan = assert(e.cook.plan(e.player, dish))
+        eq(plan.direction, strategy)
+        eq(plan.cookware, e.pot)
+        eq(plan.picked.items[1], e.food)
+        eq(plan.picked.spices[1], e.spice)
+        eq(plan.predictedCalories, 44)
+        eq(#e.inv.items, 0, "preview cleanup")
+        eq(#e.pot.extra, 0, "preview leaves original pot intact")
+        -- A supplied preview must be executed without planning again.
+        e.cook.plan = function() error("unexpected replan") end
+        e.cook.start(e.player, dish, plan)
+        e:drain()
+        eq(e.pot.container, e.stoveInv)
+        eq(e.spice.container, e.source, "leftover returned")
+        local trace = table.concat(e.trace, ",")
+        local water = (dish == "Soup" or dish == "Stew") and "water," or ""
+        eq(trace, "transfer:" .. plan.cookware.fullType .. ":inventory," .. water
+            .. "transfer:Base.Carrot:inventory,add:Base.Carrot,sound,transfer:Base.Salt:inventory,add:Base.Salt,sound,transfer:Base.Salt:cupboard,transfer:"
+            .. e.pot.fullType .. ":stove,on", "action order")
+        e.pot.cooked = true
+        e.tick()
+        e:drain()
+        eq(e.pot.container, e.inv, "dish retrieved")
+        eq(e.on, false)
+        eq(e:state().active, false)
+        assert(e.messages[#e.messages]:find("UI_CookItForMe_Done", 1, true))
+    end
+end
+
+local failures = {
+    { "NoStove", function(e) e.scan.stove = nil end },
+    { "NoPower", function(e) e.broken = true end },
+    { "NoCookware", function(e) e.collected.cookware = {} end },
+    { "NoSink", function(e) e.scan.sink = nil end },
+    { "NoWater", function(e) e.dry = true end },
+    { "NoCookware", function(e) e.noRecipe = true end },
+    { "NotEnough", function(e) e.collected.foods = {} end },
+}
+for _, case in ipairs(failures) do
+    local e = Env.new()
+    case[2](e)
+    local plan, failure = e.cook.plan(e.player, "Soup")
+    eq(plan, nil)
+    eq(failure, case[1])
+end
+
+local e = Env.new()
+e.forecastError = true
+local plan = assert(e.cook.plan(e.player, "Soup"))
+eq(plan.predictedCalories, nil)
+eq(#e.inv.items, 0, "failed forecast leaves inventory unchanged")
+eq(e.food.container, e.source)
+
+e = Env.new()
+local keepsake = e.inv:AddItem(Env.item("Base.Keepsake"))
+e.food.frozen = true
+plan = assert(e.cook.plan(e.player, "Soup"))
+eq(plan.picked.frozenCount, 1, "frozen selection")
+eq(e.allowFrozen, false, "preview leaves shared recipe unchanged")
+eq(#e.inv.items, 1, "preview preserves existing inventory")
+eq(e.inv.items[1], keepsake)
+
+for _, failure in ipairs({ "reject", "addError" }) do
+    e = Env.new()
+    e[failure] = e.food
+    e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))
+    e:drain()
+    eq(e.food.container, e.inv, "failed ingredient remains available in inventory")
+    eq(e:state().active, false, "failure stops without processing spices")
+    eq(e.on, false, "failure never starts stove")
+end
+
+for _, pos in ipairs({ { 9, 0, true }, { 10, 0, false }, { 1, 1, false } }) do
+    e = Env.new()
+    e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))
+    e:drain()
+    e.zombies = { { getX = function() return pos[1] end, getY = function() return 0 end, getZ = function() return pos[2] end } }
+    e.tick()
+    eq(e:state().active, not pos[3], "threat boundary")
+    eq(e.on, not pos[3], "owned stove on cancellation")
+end
+
+-- A preheated stove is left on when the run is cancelled by a threat.
+e = Env.new()
+e.on = true
+e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))
+e:drain()
+e.zombies = { { getX = function() return 1 end, getY = function() return 0 end, getZ = function() return 0 end } }
+e.tick()
+eq(e.on, true, "unowned stove remains on during cancellation")
+
+-- Burnt dishes are still retrieved and reported separately.
+e = Env.new()
+e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))
+e:drain()
+e.pot.burnt = true
+e.tick()
+e:drain()
+eq(e.pot.container, e.inv)
+eq(e:state().active, false)
+assert(e.messages[#e.messages]:find("UI_CookItForMe_Burnt", 1, true))
+
+-- Preserve the existing missing-dish timeout and message.
+e = Env.new()
+e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))
+e:drain()
+e.stoveInv:Remove(e.pot)
+e.now = e.now + 600001
+e.tick()
+eq(e:state().active, false)
+eq(e.messages[#e.messages], "UI_CookItForMe_ItemMissing")
+eq(e.on, false, "missing dish shuts off owned stove")
+
+e = Env.new()
+local old = { strategy = "min", radius = 7, panelX = 12, custom = true }
+e.modData.CookItForMe = old
+eq(CookItForMe.getSettings(e.player), old)
+eq(old.radius, 7)
+eq(old.frozenPenalty, 0.5)
+eq(old.custom, true)
+print("COOK CHARACTERIZATION TESTS PASSED")

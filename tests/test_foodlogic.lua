@@ -44,8 +44,8 @@ assertEq(sum, 410, "max: greedy sum (100+90+70+60+50+40)")
 assertEq(picked.frozenCount, 2, "max: frozenCount (A90, B70)")
 -- специи: 2 базовых (Salt, Pepper) + 2 по направлению (Oil, Sugar) = 4
 assertEq(#picked.spices, 4, "spices: 2 basic + 2 directed")
-assertEq(picked.spices[1]:getFullType(), "Salt", "spices: basic first")
-assertEq(picked.spices[2]:getFullType(), "Pepper", "spices: basic second")
+assertEq(picked.spices[1]:getFullType(), "Pepper", "spices: basic first")
+assertEq(picked.spices[2]:getFullType(), "Salt", "spices: basic second")
 assertEq(picked.spices[3]:getFullType(), "Oil", "spices: max directed")
 assertEq(picked.spices[4]:getFullType(), "Sugar", "spices: max directed 2")
 
@@ -70,11 +70,13 @@ assertEq(#pickedFew.items, 4, "few types: max 4 without 3rd repeat")
 -- лимит специй
 local pickedLimited = FoodLogic.pickIngredients(foods, spices, "max", 6, 1)
 assertEq(#pickedLimited.spices, 1, "maxSpices limit works")
-assertEq(pickedLimited.spices[1]:getFullType(), "Salt", "max: basic spice has priority")
+assertEq(pickedLimited.spices[1]:getFullType(), "Pepper", "max: basic spice has priority")
 
 -- === Кусок 7b: frozenPenaltyTime ===
-assertEq(FoodLogic.frozenPenaltyTime(100, 0.5, 2), 200, "penalty: 100 * (1 + 0.5*2)")
-assertEq(FoodLogic.frozenPenaltyTime(100, 0.5, 0), 100, "penalty: no frozen")
-assertEq(FoodLogic.frozenPenaltyTime(60, 0.5, 1), 90, "penalty: 60 * 1.5")
+assertEq(FoodLogic.frozenPenaltyTime(100, 0.5, 2, 4), 125, "half frozen: +25 percent")
+assertEq(FoodLogic.frozenPenaltyTime(100, 0.5, 0, 4), 100, "fresh unchanged")
+assertEq(FoodLogic.frozenPenaltyTime(60, 0.5, 1, 1), 90, "single frozen: +50 percent")
+assertEq(FoodLogic.frozenPenaltyTime(100, 0.5, 6, 6), 150, "all frozen: capped at +50 percent")
+assertEq(FoodLogic.frozenPenaltyTime(100, 0.5, 0, 0), 100, "empty input is safe")
 
 print("ALL TESTS PASSED")

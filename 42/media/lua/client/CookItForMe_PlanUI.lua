@@ -6,21 +6,16 @@ require "ISUI/ISButton"
 require "ISUI/ISLabel"
 require "ISUI/ISComboBox"
 require "ISUI/ISSpinBox"
+require "ISUI/ISTickBox"
+require "ISUI/ISPanel"
 require "CookItForMe_Shared"
-local Scanner = require "CookItForMe_Scanner"
+local Catalog = require "CookItForMe_Dishes"
 require "CookItForMe_Cook"
 
 -- Все логи — под дебаг-флагом (CookItForMe.Debug в настройках песочницы)
 local log = CookItForMe.log
 
 CookItForMePlanUI = ISCollapsableWindow:derive("CookItForMePlanUI")
-
-local DISH_LABELS = {
-    Soup = "UI_CookItForMe_DishSoup",
-    Stew = "UI_CookItForMe_DishStew",
-    ["Stir fry"] = "UI_CookItForMe_DishStirFry",
-    ["Roasted Vegetables"] = "UI_CookItForMe_DishRoast",
-}
 
 local COL1 = 16
 local COL2 = 320
@@ -67,15 +62,13 @@ local function buildRenderLines(entries, activeIndex)
     local waterText = plan.dish.needsWater
         and getText("UI_CookItForMe_PlanWaterNeeded")
         or getText("UI_CookItForMe_PlanWaterNone")
-    table.insert(lines, { kind = "text", text = getText("UI_CookItForMe_PlanDish", getText(DISH_LABELS[plan.dishKey]))
+    table.insert(lines, { kind = "text", text = getText("UI_CookItForMe_PlanDish", getText(Catalog.DISHES[plan.dishKey].label))
         .. "   |   " .. getText("UI_CookItForMe_PlanCookware", plan.cookware:getDisplayName())
         .. "   |   " .. waterText })
 
     table.insert(lines, { kind = "text", text = getText(DIRECTION_LABELS[plan.direction] or DIRECTION_LABELS.max) })
 
     table.insert(lines, { kind = "header", text = getText("UI_CookItForMe_PlanIngredients") })
-    local totalCal = 0
-    local totalHunger = 0
     local agg, order, seen = {}, {}, {}
     for _, f in ipairs(picked.items) do
         local ft = f:getFullType()
@@ -85,8 +78,6 @@ local function buildRenderLines(entries, activeIndex)
         agg[ft].count = agg[ft].count + 1
         agg[ft].cal = agg[ft].cal + f:getCalories()
         agg[ft].frozen = agg[ft].frozen or f:isFrozen()
-        totalCal = totalCal + f:getCalories()
-        totalHunger = totalHunger + f:getBaseHunger()
         if not seen[ft] then
             seen[ft] = true
             table.insert(order, ft)
@@ -114,8 +105,8 @@ local function buildRenderLines(entries, activeIndex)
         })
     end
 
-    local hungerPts = plan.predictedHunger or math.floor(-totalHunger * 100 * 0.5 + 0.5)
-    local calPts = plan.predictedCalories or math.floor(totalCal + 0.5)
+    local hungerPts = plan.predictedHunger or "?"
+    local calPts = plan.predictedCalories or "?"
     table.insert(lines, { kind = "text", text = getText("UI_CookItForMe_PlanCaloriesTotal", tostring(calPts))
         .. "   |   " .. getText("UI_CookItForMe_PlanHunger", tostring(hungerPts)) })
 
@@ -123,6 +114,7 @@ local function buildRenderLines(entries, activeIndex)
 end
 
 function CookItForMePlanUI:close()
+    if CookItForMe.planWindow == self then CookItForMe.planWindow = nil end
     local p = getSpecificPlayer(self.player)
     if p then
         local s = CookItForMe.getSettings(p)
@@ -139,9 +131,6 @@ end
 -- Пересборка всех блюд с текущими настройками
 function CookItForMePlanUI:rebuild()
     local p = getSpecificPlayer(self.player)
-    local settings = CookItForMe.getSettings(p)
-    local scan = Scanner.scanAround(p, settings.radius)
-    local collected = Scanner.collectFood(p, scan)
     local entries = {}
     for _, key in ipairs(CookItForMe.Cook.ALL_DISHES) do
         local plan, failKey = CookItForMe.Cook.plan(p, key)
@@ -173,12 +162,16 @@ function CookItForMePlanUI.onRadiusChange(panel, spinbox)
     panel:rebuild()
 end
 
+function CookItForMePlanUI.onCompletionSoundChange(panel, index, selected)
+    CookItForMe.saveSettings(getSpecificPlayer(panel.player), { completionSound = selected })
+end
+
 function CookItForMePlanUI:onCook()
     local entry = self.entries[self.activeIndex]
     if not entry or not entry.plan then return end
     log("PLAN COOK CLICKED: " .. tostring(entry.key))
-    self:close()
-    CookItForMe.Cook.start(getSpecificPlayer(self.player), entry.key, entry.plan)
+    local ok = CookItForMe.Cook.start(getSpecificPlayer(self.player), entry.key, entry.plan)
+    if ok then self:close() else self:rebuild() end
 end
 
 function CookItForMePlanUI:onSwitchDish(button)
@@ -187,108 +180,145 @@ function CookItForMePlanUI:onSwitchDish(button)
     -- просто переключаем вкладку и перерисовываем содержимое (не пересоздаём окно)
     self.activeIndex = i
     self.lines = buildRenderLines(self.entries, i)
+    self.content:setYScroll(0)
 end
 
 function CookItForMePlanUI:createChildren()
     ISCollapsableWindow.createChildren(self)
 
     local settings = CookItForMe.getSettings(getSpecificPlayer(self.player))
-    local th = self:titleBarHeight()
-    local y = th + 10
-
-    -- Табы всех блюд (недоступные — красные)
+    local y, x = self:titleBarHeight() + 10, COL1
     self.tabButtons = {}
-    local x = COL1
-    for i, e in ipairs(self.entries) do
-        local label = getText(DISH_LABELS[e.key])
-        local w = getTextManager():MeasureStringX(UIFont.Small, label) + 20
-        local btn = ISButton:new(x, y, w, 24, label, self, CookItForMePlanUI.onSwitchDish)
-        btn.internal = i
-        btn:initialise()
-        btn:instantiate()
-        if e.plan then
-            btn:enableAcceptColor()
-        else
-            btn:enableCancelColor()
-        end
-        self:addChild(btn)
-        self.tabButtons[i] = btn
-        x = x + w + 6
+    for i, entry in ipairs(self.entries) do
+        local label = getText(Catalog.DISHES[entry.key].label)
+        local width = getTextManager():MeasureStringX(UIFont.Small, label) + 20
+        if x + width > self.width - 16 then x = COL1; y = y + 30 end
+        local button = ISButton:new(x, y, width, 24, label, self, CookItForMePlanUI.onSwitchDish)
+        button.internal = i
+        button:initialise(); button:instantiate()
+        if entry.plan then button:enableAcceptColor() else button:enableCancelColor() end
+        self:addChild(button); self.tabButtons[i] = button
+        x = x + width + 6
     end
-    y = y + 30
-
-    -- Стратегия | Радиус
-    x = COL1
-    self:addChild(ISLabel:new(x, y + 4, 18, getText("UI_CookItForMe_SettingsStrategy"), 0.75, 0.75, 0.75, 1, UIFont.Small, true))
-    self.strategyCombo = ISComboBox:new(x + 110, y, 220, 24, nil, nil)
-    self.strategyCombo:setOnChange(self, CookItForMePlanUI.onStrategyChange)
+    y = y + 34
+    self.controlsTop = y
+    local strategyLabel = getText("UI_CookItForMe_SettingsStrategy")
+    self:addChild(ISLabel:new(COL1, y + 4, 18, strategyLabel, .75, .75, .75, 1, UIFont.Small, true))
+    local labelWidth = getTextManager():MeasureStringX(UIFont.Small, strategyLabel) + 12
+    self.strategyCombo = ISComboBox:new(COL1 + labelWidth, y, math.max(140, self.width - labelWidth - 36), 24, self, CookItForMePlanUI.onStrategyChange)
     self.strategyCombo:addOptionWithData(getText("UI_CookItForMe_StrategyMax"), "max")
     self.strategyCombo:addOptionWithData(getText("UI_CookItForMe_StrategyMin"), "min")
     self.strategyCombo:addOptionWithData(getText("UI_CookItForMe_StrategyHunger"), "hunger")
-    for i, opt in ipairs(self.strategyCombo.options) do
-        if opt.data == settings.strategy then self.strategyCombo:setSelected(i) break end
+    for i, option in ipairs(self.strategyCombo.options) do
+        if option.data == settings.strategy then self.strategyCombo:setSelected(i); break end
     end
     self:addChild(self.strategyCombo)
-
-    x = COL2 + 50
-    self:addChild(ISLabel:new(x, y + 4, 18, getText("UI_CookItForMe_SettingsRadius"), 0.75, 0.75, 0.75, 1, UIFont.Small, true))
-    self.radiusSpin = ISSpinBox:new(x + 80, y, 56, 24, nil, nil)
+    y = y + 30
+    local radiusLabel = getText("UI_CookItForMe_SettingsRadius")
+    self:addChild(ISLabel:new(COL1, y + 4, 18, radiusLabel, .75, .75, .75, 1, UIFont.Small, true))
+    local radiusX = COL1 + getTextManager():MeasureStringX(UIFont.Small, radiusLabel) + 12
+    self.radiusSpin = ISSpinBox:new(radiusX, y, 56, 24, self, CookItForMePlanUI.onRadiusChange)
     for i = 0, 30 do self.radiusSpin:addOption(tostring(i)) end
     self.radiusSpin:setSelectedOption(tostring(settings.radius))
-    self.radiusSpin.target = self
-    self.radiusSpin.targetFunc = CookItForMePlanUI.onRadiusChange
     self:addChild(self.radiusSpin)
-    self:addChild(ISLabel:new(x + 142, y + 4, 18, getText("UI_CookItForMe_SettingsRadiusHintShort"), 0.55, 0.55, 0.55, 1, UIFont.Small, true))
-
-    -- кнопки
-    local rh = self:resizeWidgetHeight()
-    local btnY = self.height - rh - 44
-    local btn = ISButton:new(COL1, btnY, 160, 30, getText("UI_CookItForMe_PlanCook"), self, CookItForMePlanUI.onCook)
-    btn:initialise()
-    btn:instantiate()
-    btn:enableAcceptColor()
-    btn.anchorTop = false
-    btn.anchorBottom = true
-    self:addChild(btn)
-
-    btn = ISButton:new(COL1 + 174, btnY, 100, 30, getText("UI_CookItForMe_SettingsClose"), self, CookItForMePlanUI.close)
-    btn:initialise()
-    btn:instantiate()
-    btn:enableCancelColor()
-    btn.anchorTop = false
-    btn.anchorBottom = true
-    self:addChild(btn)
+    self:addChild(ISLabel:new(radiusX + 68, y + 4, 18, getText("UI_CookItForMe_SettingsRadiusHintShort"), .55, .55, .55, 1, UIFont.Small, true))
+    y = y + 30
+    self.completionSoundTick = ISTickBox:new(COL1, y, self.width - 32, 24, "", self, CookItForMePlanUI.onCompletionSoundChange)
+    self.completionSoundTick:initialise()
+    self.completionSoundTick:addOption(getText("UI_CookItForMe_SettingsCompletionSound"))
+    self.completionSoundTick:setSelected(1, settings.completionSound)
+    self:addChild(self.completionSoundTick)
+    y = y + 32
+    self.content = ISPanel:new(8, y, self.width - 16, self.height - y - 58)
+    self.content.anchorRight = true; self.content.anchorBottom = true
+    self.content:initialise(); self.content:instantiate()
+    self.content:addScrollBars()
+    self.content.onMouseWheel = function(panel, delta)
+        panel:setYScroll(math.min(0, math.max(math.min(0, panel.height - panel:getScrollHeight()), panel:getYScroll() - delta * 30)))
+        return true
+    end
+    self.content.prerender = function(panel)
+        panel:setStencilRect(0, 0, panel.width - 14, panel.height)
+        local top = 0
+        for _, line in ipairs(self.lines) do
+            local words, row = {}, ""
+            local left = line.tex and 40 or 8
+            if line.tex then panel:drawTextureScaled(line.tex, 8, top, 24, 24, 1, 1, 1, 1) end
+            for word in line.text:gmatch("%S+") do words[#words + 1] = word end
+            local function draw(text)
+                panel:drawText(text, left, top, 0.92, 0.92, line.kind == "header" and 0.6 or 0.92, 1, UIFont.Small)
+                top = top + math.max(24, getTextManager():getFontHeight(UIFont.Small) + 4)
+            end
+            for _, word in ipairs(words) do
+                local candidate = row == "" and word or row .. " " .. word
+                if row ~= "" and getTextManager():MeasureStringX(UIFont.Small, candidate) > panel.width - left - 28 then
+                    draw(row); row = word
+                else row = candidate end
+                if getTextManager():MeasureStringX(UIFont.Small, row) > panel.width - left - 28 then
+                    local chunk = ""
+                    for char in row:gmatch("[^\128-\191][\128-\191]*") do
+                        if chunk ~= "" and getTextManager():MeasureStringX(UIFont.Small, chunk .. char) > panel.width - left - 28 then
+                            draw(chunk); chunk = char
+                        else chunk = chunk .. char end
+                    end
+                    row = chunk
+                end
+            end
+            draw(row)
+        end
+        panel:setScrollHeight(top)
+        panel:clearStencilRect()
+    end
+    self:addChild(self.content)
+    local btnY = self.height - self:resizeWidgetHeight() - 44
+    local function button(xPos, width, title, callback)
+        local b = ISButton:new(xPos, btnY, width, 30, getText(title), self, callback)
+        b.anchorTop = false; b.anchorBottom = true
+        b:initialise(); b:instantiate()
+        self:addChild(b); return b
+    end
+    self.cookButton = button(COL1, 160, "UI_CookItForMe_PlanCook", CookItForMePlanUI.onCook)
+    self.cookButton:enableAcceptColor()
+    self.closeButton = button(COL1 + 174, 110, "UI_CookItForMe_SettingsClose", CookItForMePlanUI.close)
+    self.closeButton:enableCancelColor()
 end
 
 function CookItForMePlanUI:prerender()
     ISCollapsableWindow.prerender(self)
     if self.isCollapsed then return end
-
-    local activeTab = self.tabButtons and self.tabButtons[self.activeIndex]
-    if activeTab then
-        self:drawRectBorder(activeTab.x - 2, activeTab.y - 2, activeTab.width + 4, activeTab.height + 4, 1, 1, 0.9, 0.5)
+    local x, y = COL1, self:titleBarHeight() + 10
+    local tabs = {}
+    for _, button in ipairs(self.tabButtons) do
+        tabs[button] = true
+        if x + button.width > self.width - 16 then x = COL1; y = y + 30 end
+        button:setX(x); button:setY(y); x = x + button.width + 6
     end
-
-    local th = self:titleBarHeight()
-    local y = th + 10 + 30 + 34 + 8
-    for _, line in ipairs(self.lines) do
-        if line.kind == "header" then
-            self:drawText(line.text, COL1 + 2, y + 3, 1, 0.9, 0.7, 1, UIFont.Small)
-            y = y + 26
-        elseif line.kind == "item" and line.tex then
-            self:drawTextureScaled(line.tex, COL1 + 14, y, 24, 24, 1, 1, 1, 1)
-            self:drawText(line.text, COL1 + 46, y + 3, 0.92, 0.92, 0.92, 1, UIFont.Small)
-            y = y + 26
-        else
-            self:drawText(line.text, COL1 + 14, y + 3, 0.92, 0.92, 0.92, 1, UIFont.Small)
-            y = y + 22
+    local controlsTop = y + 34
+    local shift = controlsTop - self.controlsTop
+    if shift ~= 0 then
+        for _, child in pairs(self.children) do
+            if not tabs[child] and child.anchorTop ~= false and child.y >= self.controlsTop then child:setY(child.y + shift) end
         end
+        self.controlsTop = controlsTop
     end
+    self.strategyCombo:setWidth(math.max(140, self.width - self.strategyCombo.x - 20))
+    local btnY = self.height - self:resizeWidgetHeight() - 44
+    self.cookButton:setY(btnY)
+    self.closeButton:setY(btnY)
+    self.content:setWidth(self.width - 16)
+    self.content:setHeight(math.max(32, btnY - self.content.y - 6))
+    local session = CookItForMe.Cook.getSession()
+    local busy = session and session.active
+    local entry = self.entries[self.activeIndex]
+    self.cookButton:setEnable(not busy and entry ~= nil and entry.plan ~= nil)
+    self.title = getText(busy and "UI_CookItForMe_Busy" or "UI_CookItForMe_PlanTitle")
+    local tab = self.tabButtons[self.activeIndex]
+    if tab then self:drawRectBorder(tab.x - 2, tab.y - 2, tab.width + 4, tab.height + 4, 1, 1, .9, .5) end
 end
 
 function CookItForMePlanUI:new(player, entries, activeIndex)
     -- активный таб по умолчанию — первый доступный
-    if not activeIndex or not entries[activeIndex] or not entries[activeIndex].plan then
+    if not activeIndex or not entries[activeIndex] then
         activeIndex = 1
         for i, e in ipairs(entries) do
             if e.plan then activeIndex = i break end
@@ -296,11 +326,16 @@ function CookItForMePlanUI:new(player, entries, activeIndex)
     end
     local lines = buildRenderLines(entries, activeIndex)
     local settings = CookItForMe.getSettings(getSpecificPlayer(player))
-    local w = settings.panelW or 560
-    local h = settings.panelH or 560
+    if CookItForMe.planWindow then CookItForMe.planWindow:close() end
+    local sw, sh = getCore():getScreenWidth(), getCore():getScreenHeight()
+    local w = math.min(sw, math.max(560, tonumber(settings.panelW) or 560))
+    local h = math.min(sh, math.max(420, tonumber(settings.panelH) or 560))
     local x = settings.panelX or ((getCore():getScreenWidth() - w) / 2)
     local y = settings.panelY or ((getCore():getScreenHeight() - h) / 2)
+    x, y = math.max(0, math.min(sw - w, tonumber(x) or 0)), math.max(0, math.min(sh - h, tonumber(y) or 0))
     local o = ISCollapsableWindow.new(self, x, y, w, h)
+    o.minimumWidth = math.min(sw, 560)
+    o.minimumHeight = math.min(sh, 420)
     o.player = player
     o.entries = entries
     o.activeIndex = activeIndex
@@ -311,5 +346,6 @@ function CookItForMePlanUI:new(player, entries, activeIndex)
     o:initialise()
     o:addToUIManager()
     o:setVisible(true)
+    CookItForMe.planWindow = o
     return o
 end

@@ -27,7 +27,7 @@ end
 --   2) по направлению (max - калорийные, min - низкокалорийные, hunger - сытные) — остаток.
 -- Замороженные допустимы.
 -- Возвращает { items = {...}, spices = {...}, frozenCount = n }
-function FoodLogic.pickIngredients(foods, spices, direction, maxItems, maxSpices)
+function FoodLogic.pickIngredients(foods, spices, direction, maxItems, maxSpices, score)
     local sorted = {}
     for _, f in ipairs(foods) do
         table.insert(sorted, f)
@@ -36,8 +36,20 @@ function FoodLogic.pickIngredients(foods, spices, direction, maxItems, maxSpices
     for _, s in ipairs(spices) do
         table.insert(sortedSpices, s)
     end
-    table.sort(sorted, function(a, b) return compareBy(a, b, direction) end)
-    table.sort(sortedSpices, function(a, b) return compareBy(a, b, direction) end)
+    local function compare(a, b)
+        if score then
+            local av, bv = score(a), score(b)
+            if av ~= bv then
+                if direction == "min" then return av < bv end
+                return av > bv
+            end
+        elseif compareBy(a, b, direction) ~= compareBy(b, a, direction) then
+            return compareBy(a, b, direction)
+        end
+        return a:getFullType() < b:getFullType()
+    end
+    table.sort(sorted, compare)
+    table.sort(sortedSpices, compare)
 
     local items, counts, frozenCount = {}, {}, 0
     for _, f in ipairs(sorted) do
@@ -54,7 +66,7 @@ function FoodLogic.pickIngredients(foods, spices, direction, maxItems, maxSpices
     local pickedSpices, seenSpice = {}, {}
     -- 1) базовые: до 2
     for _, s in ipairs(sortedSpices) do
-        if #pickedSpices >= maxSpices then break end
+        if #pickedSpices >= math.min(2, maxSpices) then break end
         local ft = s:getFullType()
         if not seenSpice[ft] and s:getCalories() < 10 then
             seenSpice[ft] = true
@@ -75,8 +87,10 @@ function FoodLogic.pickIngredients(foods, spices, direction, maxItems, maxSpices
 end
 
 -- Штраф времени готовки за замороженные ингредиенты
-function FoodLogic.frozenPenaltyTime(baseTime, penalty, frozenCount)
-    return baseTime * (1 + penalty * frozenCount)
+function FoodLogic.frozenPenaltyTime(baseTime, penalty, frozenCount, ingredientCount)
+    -- Penalize the frozen share, not each ingredient cumulatively. Spices do not count.
+    local fraction = math.min(1, math.max(0, frozenCount) / math.max(1, ingredientCount or frozenCount))
+    return baseTime * (1 + penalty * fraction)
 end
 
 return FoodLogic

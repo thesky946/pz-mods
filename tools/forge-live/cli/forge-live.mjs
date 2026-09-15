@@ -1,177 +1,168 @@
 #!/usr/bin/env node
-// forge-live — el bucle "guardar y ver" para mods de Project Zomboid B42.
-//
-//   guardás un .lua en el repo
-//     -> gate: BOM / no-ASCII / sintaxis Lua 5.1   (un archivo roto NUNCA llega al juego)
-//     -> copia a las rutas instaladas (mods/ y staging de Workshop)
-//     -> le pide al DemiurgoBridge in-game: reloadLuaFile(<ruta>)
-//     -> imprime el veredicto real que devolvió el juego
-//
-// Uso:
-//   node mcp/forge-live.mjs                 # vigila todo lo del config
-//   node mcp/forge-live.mjs --mod Captive   # solo un mod
-//   node mcp/forge-live.mjs --dry           # no escribe ni recarga, solo informa
-//   node mcp/forge-live.mjs --once <file>   # procesa un archivo y sale (util para probar)
-//
-// Requiere PZ_ALLOW_CONTROL=1 salvo en --dry (mismo gate que el resto del MCP).
-
+// Validated batches, dependency ordering and one outstanding bridge request.
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import lua from "luaparse";
+import { snapshot, planReload, serialQueue, batchScheduler, acquireBridgeLock } from "./reload-core.mjs";
 
 const args = process.argv.slice(2);
-const flag = (n) => {
-  const i = args.indexOf(n);
-  return i >= 0 ? (args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : true) : null;
+const flag = name => {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
 };
-const REPO = path.resolve(path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\//, "")), ".."));
-const configPath = flag("--config") || path.join(REPO, "forge-live.config.json");
-const onlyMod = typeof flag("--mod") === "string" ? flag("--mod") : null;
-const onceFile = typeof flag("--once") === "string" ? flag("--once") : null;
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const configPath = flag("--config") || path.join(repo, "forge-live.config.json");
+const onlyMod = flag("--mod");
+const onceFile = flag("--once");
 const dry = args.includes("--dry");
-
 if (!dry && process.env.PZ_ALLOW_CONTROL !== "1") {
-  console.error("[forge-live] falta PZ_ALLOW_CONTROL=1 (o usa --dry)");
-  process.exit(1);
-}
-if (!fs.existsSync(configPath)) {
-  console.error(`[forge-live] no encuentro el config: ${configPath}`);
+  console.error("[forge-live] Set PZ_ALLOW_CONTROL=1 or use --dry.");
   process.exit(1);
 }
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-
-let luaparse = null;
-try {
-  luaparse = (await import("luaparse")).default;
-} catch { /* opcional */ }
-console.log(`[forge-live] gate de sintaxis: ${luaparse ? "ON" : "OFF (npm i luaparse)"}`);
-
-// ---------- gate G1 (mismo criterio que pz_lua_check) ----------
-function gate(abs) {
-  const buf = fs.readFileSync(abs);
-  const bad = [];
-  if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf)
-    bad.push("BOM UTF-8 (PZ tira Error 11)");
-  // This project keeps Russian comments in UTF-8 Lua sources. PZ loads those files
-  // correctly; reject only a BOM and actual Lua 5.1 syntax errors.
-  if (luaparse) {
-    try { luaparse.parse(buf.toString("utf8"), { luaVersion: "5.1" }); }
-    catch (e) { bad.push(`sintaxis: ${e.message}`); }
-  }
-  return bad;
+const mods = config.mods.filter(mod => !onlyMod || mod.id === onlyMod);
+if (!mods.length) throw new Error("No matching mod.");
+const unlock = [];
+process.on("exit", () => { for (const release of unlock) release(); });
+process.on("SIGINT", () => process.exit(0));
+process.on("SIGTERM", () => process.exit(0));
+if (!dry) {
+  for (const dir of new Set(mods.map(mod => path.resolve(mod.bridgeDir)))) unlock.push(acquireBridgeLock(dir));
 }
+console.log("[forge-live] Lua 5.1 syntax gate ON; dependency batches; serialized mailbox.");
 
-// ---------- lo que el motor NO recarga ----------
-const NO_HOT = [
-  [/\.txt$/i, "scripts .txt (items/recetas) se parsean al arrancar -> requiere reiniciar PZ"],
-  [/mod\.info$/i, "mod.info se lee al arrancar -> requiere reiniciar PZ"],
-  [/\.(fbx|png|x|anim)$/i, "assets cacheados por el motor -> normalmente requiere reiniciar"],
-];
-
-// ---------- canal con el bridge ----------
-function send(bridgeDir, type, payload, timeoutMs = 6000) {
-  const id = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-  fs.mkdirSync(bridgeDir, { recursive: true });
-  // El \n final NO es cosmetico: el readLine() de PZ puede devolver nil sobre un
-  // archivo sin terminador de linea, y entonces el comando se pierde sin ruido.
-  fs.writeFileSync(path.join(bridgeDir, "cmd.txt"), `${id}\t${type}\t${payload || ""}\n`);
-  // .txt, no .json: en 42.20 getFileWriter devuelve nil sobre .json y la respuesta
-  // se pierde sin error. Fue la causa raiz del canal mudo (ver doc 181).
-  const rf = path.join(bridgeDir, "result.txt");
-  const t0 = Date.now();
-  return new Promise((res) => {
-    const iv = setInterval(() => {
-      try {
-        const r = JSON.parse(fs.readFileSync(rf, "utf8"));
-        if (r.id === id) { clearInterval(iv); res({ ...r, ms: Date.now() - t0 }); return; }
-      } catch { /* aun no */ }
-      if (Date.now() - t0 > timeoutMs) {
-        clearInterval(iv);
-        res({ id, ok: false, value: "timeout: el juego no respondio (bridge cargado? in-world?)", ms: Date.now() - t0 });
-      }
-    }, 120);
+const mailboxes = new Map();
+function send(bridgeDir, type, payload, timeout = 6000) {
+  bridgeDir = path.resolve(bridgeDir);
+  if (!mailboxes.has(bridgeDir)) mailboxes.set(bridgeDir, serialQueue());
+  return mailboxes.get(bridgeDir)(() => {
+    const id = Date.now() + "-" + Math.floor(Math.random() * 1e9);
+    fs.mkdirSync(bridgeDir, { recursive: true });
+    fs.writeFileSync(path.join(bridgeDir, "cmd.txt"), id + "\t" + type + "\t" + (payload || "") + "\n");
+    const start = Date.now();
+    return new Promise(resolve => {
+      const timer = setInterval(() => {
+        try {
+          const reply = JSON.parse(fs.readFileSync(path.join(bridgeDir, "result.txt"), "utf8"));
+          if (reply.id === id) {
+            clearInterval(timer);
+            resolve(reply);
+            return;
+          }
+        } catch { /* reply not ready */ }
+        if (Date.now() - start >= timeout) {
+          clearInterval(timer);
+          resolve({ ok: false, value: "timeout: game did not acknowledge the command" });
+        }
+      }, 120);
+    });
   });
 }
 
-// ---------- procesar un archivo ----------
-async function handle(mod, abs) {
-  const rel = path.relative(path.resolve(mod.src), abs);
-  if (rel.startsWith("..")) return;
-
-  const no = NO_HOT.find(([re]) => re.test(abs));
-  if (no) { console.log(`  [${mod.id}] ${rel}: NO recargable — ${no[1]}`); return; }
-  if (!abs.endsWith(".lua")) return;
-
-  const t0 = Date.now();
-  const bad = gate(abs);
-  if (bad.length) {
-    console.log(`  [${mod.id}] ${rel}: BLOQUEADO (el juego ni se entera)`);
-    bad.forEach((b) => console.log(`      - ${b}`));
-    return;
-  }
-
-  const targets = [];
-  for (const t of mod.targets) {
-    const dst = path.join(path.resolve(t), rel);
-    if (!dry) { fs.mkdirSync(path.dirname(dst), { recursive: true }); fs.copyFileSync(abs, dst); }
-    targets.push(dst);
-  }
-  if (dry) { console.log(`  [${mod.id}] ${rel}: gate OK, ${targets.length} destino(s) [dry]`); return; }
-
-  const r = await send(path.resolve(mod.bridgeDir), "reload", targets[0]);
-  const total = Date.now() - t0;
-  console.log(`  [${mod.id}] ${rel}: ${r.ok ? "RECARGADO" : "FALLO"} en ${total}ms — ${r.value}`);
+function inside(root, file) {
+  const relative = path.relative(root, file);
+  return relative !== ".." && !relative.startsWith(".." + path.sep) && !path.isAbsolute(relative);
 }
 
-// ---------- watcher ----------
-function watch(mod) {
-  const src = path.resolve(mod.src);
-  if (!fs.existsSync(src)) { console.error(`[${mod.id}] no existe la fuente: ${src}`); return; }
-  console.log(`[${mod.id}] vigilando ${src}`);
-  const timers = new Map();
-  const sched = (f) => {
-    clearTimeout(timers.get(f));
-    timers.set(f, setTimeout(() => handle(mod, f), 300));
+function createRunner(mod, previous) {
+  const root = path.resolve(mod.src);
+  let blocked = false;
+  return async function run(forceFile) {
+    const current = snapshot(root, lua.parse);
+    let baseline = previous;
+    if (forceFile && current.has(forceFile)) {
+      baseline = new Map(previous);
+      // Keep a new file new, so --once cannot bypass the restart requirement.
+      if (baseline.has(forceFile)) baseline.set(forceFile, { ...baseline.get(forceFile), hash: "force-reload" });
+    }
+    const plan = planReload(baseline, current, mod.modulePrefix || mod.id + "_");
+    if (!plan.order.length && !plan.removed.length) return true;
+    console.log("[" + mod.id + "] batch: " + plan.order.join(", "));
+    if (dry) {
+      console.log(plan.restart ? "RESTART REQUIRED: module set changed [dry]" : "Validation OK [dry]");
+      previous = current;
+      return true;
+    }
+    // Validate ALL sources before copying ANY of them, then copy ALL before reload.
+    for (const relative of plan.order) {
+      for (const target of mod.targets) {
+        const destination = path.join(path.resolve(target), relative);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.writeFileSync(destination, current.get(relative).bytes);
+      }
+    }
+    previous = current;
+    if (plan.restart || blocked) {
+      blocked = true;
+      console.error("[" + mod.id + "] RESTART REQUIRED: staged files only; automatic reload paused.");
+      if (plan.added.length) console.error("Added: " + plan.added.join(", "));
+      if (plan.removed.length) console.error("Removed: " + plan.removed.join(", "));
+      console.error("Stop this watcher, restart PZ after syncing with tools/dev.ps1, then start tools/dev.cmd.");
+      return false;
+    }
+    for (const relative of plan.order) {
+      // require() caches the resolved absolute path in LuaManager.loadedReturn.
+      // Reloading a relative alias leaves that absolute-path cache stale.
+      const reloadPath = path.join(path.resolve(mod.targets[0]), relative).split(path.sep).join("/");
+      let result;
+      try {
+        result = await send(mod.bridgeDir, "reload", reloadPath);
+      } catch (error) {
+        blocked = true;
+        throw new Error("Bridge I/O failed; restart PZ and watcher: " + error.message);
+      }
+      if (!result.ok) {
+        blocked = true;
+        console.error("[" + mod.id + "] FAILED: " + relative + ": " + result.value);
+        console.error("Batch stopped; restart PZ and this watcher before continuing.");
+        return false;
+      }
+      // pcall(reloadLuaFile) is an acknowledgement, not proof of correct runtime behavior.
+      console.log("[" + mod.id + "] RELOAD ACK: " + relative);
+    }
+    return true;
   };
-  try {
-    fs.watch(src, { recursive: true }, (_e, fname) => {
-      if (!fname) return;
-      const full = path.join(src, fname.toString());
-      if (fs.existsSync(full) && fs.statSync(full).isFile()) sched(full);
-    });
-  } catch {
-    console.log(`[${mod.id}] sin watch recursivo; sondeo cada 1s`);
-    const seen = new Map();
-    setInterval(() => {
-      const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
-        const full = path.join(d, e.name);
-        if (e.isDirectory()) return walk(full);
-        const m = fs.statSync(full).mtimeMs;
-        if (seen.get(full) && seen.get(full) !== m) sched(full);
-        seen.set(full, m);
-      });
-      walk(src);
-    }, 1000);
-  }
 }
-
-// ---------- main ----------
-const mods = config.mods.filter((m) => !onlyMod || m.id === onlyMod);
-if (!mods.length) { console.error("[forge-live] ningun mod coincide"); process.exit(1); }
 
 if (onceFile) {
-  const abs = path.resolve(onceFile);
-  const mod = mods.find((m) => !path.relative(path.resolve(m.src), abs).startsWith(".."));
-  if (!mod) { console.error(`[forge-live] ${abs} no pertenece a ningun mod del config`); process.exit(1); }
-  await handle(mod, abs);
-  process.exit(0);
-}
-
-console.log(`[forge-live] ${dry ? "DRY — " : ""}vigilando ${mods.length} mod(s). Ctrl+C para salir.`);
-for (const m of mods) watch(m);
-if (!dry) {
-  for (const m of mods) {
-    if (!m.bridgeDir) continue;
-    send(path.resolve(m.bridgeDir), "ping", "").then((r) =>
-      console.log(`[${m.id}] bridge: ${r.ok ? r.value : "sin respuesta — " + r.value}`));
+  const absolute = path.resolve(onceFile);
+  const mod = mods.find(candidate => inside(path.resolve(candidate.src), absolute));
+  if (!mod) throw new Error("File is outside configured mod sources.");
+  const target = path.resolve(mod.targets[0]);
+  const baseline = fs.existsSync(target) ? snapshot(target, lua.parse) : new Map();
+  const run = createRunner(mod, baseline);
+  const relative = path.relative(path.resolve(mod.src), absolute).split(path.sep).join("/");
+  if (!absolute.endsWith(".lua")) throw new Error("--once requires a Lua source.");
+  if (!(await run(relative))) process.exitCode = 1;
+} else {
+  for (const mod of mods) {
+    const root = path.resolve(mod.src);
+    const run = createRunner(mod, snapshot(root, lua.parse));
+    const schedule = batchScheduler(run, error => {
+      console.error("[" + mod.id + "] BLOCKED: " + error.message + ". Fix sources and save again.");
+    });
+    console.log("[" + mod.id + "] watching " + root);
+    if (!dry) {
+      // Queue before watcher requests so startup ping cannot overwrite a reload.
+      send(mod.bridgeDir, "ping", "").then(reply => {
+        console.log("[" + mod.id + "] bridge: " + reply.value);
+      }).catch(error => console.error(error.message));
+    }
+    try {
+      fs.watch(root, { recursive: true }, (_event, filename) => {
+        if (!filename) { schedule(); return; }
+        const file = filename.toString();
+        if (/\.(txt|json|png|fbx|anim)$/i.test(file) || /mod\.info$/i.test(file)) {
+          console.log("[" + mod.id + "] " + file + ": sync and restart PZ required.");
+          return;
+        }
+        // Deletions and directory renames must also trigger a new snapshot.
+        schedule();
+      });
+    } catch {
+      console.log("[" + mod.id + "] recursive watcher unavailable; polling every second.");
+      setInterval(schedule, 1000);
+    }
   }
 }
