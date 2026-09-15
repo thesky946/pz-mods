@@ -1,0 +1,5 @@
+{
+    "Sandbox_CookItForMe": "Cook It For Me",
+    "Sandbox_CookItForMe_Debug": "Registro de depuración",
+    "Sandbox_CookItForMe_Debug_tooltip": "Escribe un registro detallado del mod en console.txt: cada paso de la preparación, los contenedores examinados, la validación de recetas y los ingredientes seleccionados. Desactivado por defecto; actívalo solo para diagnosticar problemas."
+}

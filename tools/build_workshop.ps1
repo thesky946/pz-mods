@@ -5,10 +5,8 @@
 #
 # Result: %USERPROFILE%\Zomboid\Workshop\CookItForMe\
 #
-# NOTE: this script does NOT upload anything to Steam. It only lays the files out the
-# way the in-game uploader expects. The upload itself is manual: launch PZ -> Workshop ->
-# Create/Update Item -> pick this folder -> Upload. There is no headless way: uploads go
-# through Steam UGC, which the game engine drives from inside the game.
+# NOTE: this script does NOT upload anything to Steam. It assembles the upload folder
+# consumed by SteamUploader after the build completes.
 #
 # Layout the uploader expects:
 #     %USERPROFILE%\Zomboid\Workshop\CookItForMe\
@@ -51,7 +49,17 @@ foreach ($candidate in @((Join-Path $Out "workshop.txt"), $SrcWorkshopTxt)) {
     }
 }
 
-if (Test-Path $Out) { Remove-Item $Out -Recurse -Force }
+$Out = [System.IO.Path]::GetFullPath($Out)
+$resolvedDestRoot = [System.IO.Path]::GetFullPath($DestRoot).TrimEnd('\', '/')
+if ((Split-Path -Parent $Out) -ne $resolvedDestRoot -or (Split-Path -Leaf $Out) -ne $ModName) {
+    Fail "unsafe build destination: $Out"
+}
+if (Test-Path -LiteralPath $Out) {
+    if ((Get-Item -LiteralPath $Out -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        Fail "build destination must not be a link: $Out"
+    }
+    Remove-Item -LiteralPath $Out -Recurse -Force
+}
 $ModOut = Join-Path $Out "Contents\mods\$ModName"
 New-Item -ItemType Directory -Path $ModOut -Force | Out-Null
 
@@ -70,12 +78,43 @@ if (Test-Path $SrcPreview) {
     Copy-Item $SrcPoster (Join-Path $Out "preview.png") -Force
 }
 
+# Steam Workshop validates a 256x256 PNG. Keep the high-resolution source artwork in
+# the repository and scale only the copied upload asset.
+$OutPreview = Join-Path $Out "preview.png"
+Add-Type -AssemblyName System.Drawing
+$previewImage = [System.Drawing.Image]::FromFile($OutPreview)
+try {
+    if ($previewImage.Width -ne 256 -or $previewImage.Height -ne 256) {
+        $resized = New-Object System.Drawing.Bitmap(256, 256)
+        $graphics = [System.Drawing.Graphics]::FromImage($resized)
+        try {
+            $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+            $graphics.DrawImage($previewImage, 0, 0, 256, 256)
+            $tempPreview = "$OutPreview.tmp"
+            $resized.Save($tempPreview, [System.Drawing.Imaging.ImageFormat]::Png)
+        } finally {
+            $graphics.Dispose()
+            $resized.Dispose()
+        }
+    }
+} finally {
+    $previewImage.Dispose()
+}
+if (Test-Path $tempPreview) { Move-Item -LiteralPath $tempPreview -Destination $OutPreview -Force }
+
+# SteamUploader reads the Workshop description from a separate BBCode file. Keep it
+# derived from workshop.txt so the in-game and command-line upload paths stay in sync.
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$descriptionLines = Get-Content -LiteralPath $SrcWorkshopTxt -Encoding UTF8 |
+    Where-Object { $_ -like "description=*" } |
+    ForEach-Object { $_.Substring("description=".Length) }
+[System.IO.File]::WriteAllText((Join-Path $Out "description.bbcode"), ($descriptionLines -join "`r`n"), $utf8NoBom)
+
 # Put the id back into the built file and, if it was missing, into the source file, so it
 # survives future builds and is not lost when the Workshop folder is deleted.
 # Written via .NET: Add-Content on PowerShell 5.1 prepends a BOM and corrupts UTF-8.
 if ($PrevId) {
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    $outTxt = Join-Path $Out "workshop.txt"
+$outTxt = Join-Path $Out "workshop.txt"
     if (-not (Select-String -Path $outTxt -Pattern '^id=' -List)) {
         [System.IO.File]::AppendAllText($outTxt, "$PrevId`r`n", $utf8NoBom)
     }
@@ -95,17 +134,16 @@ foreach ($f in @("workshop.txt", "preview.png", "Contents\mods\$ModName\42\mod.i
     if (-not (Test-Path $p)) { Fail "not built: $p" }
 }
 
-# The uploader wants a 256x256 preview (it validates it itself via validatePreviewImage)
+# Confirm the generated upload preview meets Steam's requirement.
 try {
-    Add-Type -AssemblyName System.Drawing
     $img = [System.Drawing.Image]::FromFile((Join-Path $Out "preview.png"))
     $w = $img.Width; $h = $img.Height
     $img.Dispose()
     if ($w -ne 256 -or $h -ne 256) {
-        Warn "warning: preview.png is ${w}x${h}, the uploader expects 256x256"
+        Fail "preview.png is ${w}x${h}, Steam requires 256x256"
     }
 } catch {
-    Warn "warning: could not check preview.png size ($_)"
+    Fail "could not validate preview.png size ($_ )"
 }
 
 if (-not (Select-String -Path (Join-Path $Out "workshop.txt") -Pattern '^visibility=' -List)) {
@@ -117,6 +155,6 @@ if (Select-String -Path (Join-Path $Out "workshop.txt") -Pattern '^id=' -List) {
 
 Write-Host ""
 Write-Host "done: $Out" -ForegroundColor Green
-Write-Host "next: launch PZ -> Workshop -> Create/Update Item -> pick this folder -> Upload"
+Write-Host "next: run SteamUploader upload --manifest-path $Src\mod-manifest.json"
 Write-Host "reminder: do not keep the mod enabled from both Zomboid\mods and Zomboid\Workshop -"
 Write-Host "          after publishing, Steam downloads its own copy and the mod list shows two entries"

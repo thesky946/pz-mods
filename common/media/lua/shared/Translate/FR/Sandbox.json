@@ -1,0 +1,5 @@
+{
+    "Sandbox_CookItForMe": "Cook It For Me",
+    "Sandbox_CookItForMe_Debug": "Journal de débogage",
+    "Sandbox_CookItForMe_Debug_tooltip": "Écrit le journal détaillé du mod dans console.txt : chaque étape de la préparation, les conteneurs analysés, la validation des recettes et les ingrédients sélectionnés. Désactivé par défaut ; à activer uniquement pour diagnostiquer un problème."
+}

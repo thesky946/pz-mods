@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/SimKDT/Steam-Uploader-rs/refs/heads/main/manifest_schema/mod-manifest-schema.json",
+  "appid": 108600,
+  "workshopid": 3801601464,
+  "content": "C:\\Users\\User\\Zomboid\\Workshop\\CookItForMe\\Contents",
+  "preview": "C:\\Users\\User\\Zomboid\\Workshop\\CookItForMe\\preview.png",
+  "title": "Cook It For Me - Auto Cooking & Nutrition",
+  "description": "C:\\Users\\User\\Zomboid\\Workshop\\CookItForMe\\description.bbcode",
+  "visibility": 0,
+  "tags": ["Build 42", "QoL", "Misc"]
+}

@@ -1,0 +1,5 @@
+{
+    "Sandbox_CookItForMe": "Cook It For Me",
+    "Sandbox_CookItForMe_Debug": "调试日志",
+    "Sandbox_CookItForMe_Debug_tooltip": "将模组的详细日志写入 console.txt：烹饪流程的每个步骤、扫描过的容器、配方验证和选用的食材。默认关闭，仅在排查问题时开启。"
+}

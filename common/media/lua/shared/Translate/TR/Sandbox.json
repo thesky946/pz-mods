@@ -1,0 +1,5 @@
+{
+    "Sandbox_CookItForMe": "Cook It For Me",
+    "Sandbox_CookItForMe_Debug": "Hata ayıklama günlüğü",
+    "Sandbox_CookItForMe_Debug_tooltip": "Modun ayrıntılı günlüğünü console.txt dosyasına yazar: yemek hazırlamanın her adımı, taranan kaplar, tarif doğrulaması ve seçilen malzemeler. Varsayılan olarak kapalıdır; yalnızca sorunları gidermek için açın."
+}

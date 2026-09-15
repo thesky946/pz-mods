@@ -1,0 +1,58 @@
+# Build and update the existing Steam Workshop item in one command.
+[CmdletBinding()]
+param(
+    [string]$PatchNote,
+    [switch]$DryRun,
+    [string]$UploaderPath = $env:STEAM_UPLOADER_PATH
+)
+
+$ErrorActionPreference = 'Stop'
+$repo = Split-Path -Parent $PSScriptRoot
+$manifestPath = Join-Path $repo 'mod-manifest.json'
+$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($manifest.appid -ne 108600 -or $manifest.workshopid -ne 3801601464) {
+    throw 'Manifest must target Project Zomboid item 3801601464.'
+}
+
+if (-not $UploaderPath) {
+    $command = Get-Command SteamUploader.exe -ErrorAction SilentlyContinue
+    if ($command) { $UploaderPath = $command.Source }
+    else { $UploaderPath = Join-Path $env:USERPROFILE '.codex\tools\SteamUploader\SteamUploader.exe' }
+}
+if (-not (Test-Path -LiteralPath $UploaderPath -PathType Leaf)) {
+    throw 'SteamUploader.exe not found. Set STEAM_UPLOADER_PATH or pass -UploaderPath.'
+}
+$UploaderPath = (Resolve-Path -LiteralPath $UploaderPath).Path
+if (-not $DryRun -and -not (Get-Process steam -ErrorAction SilentlyContinue)) {
+    throw 'Start Steam and sign into the account that owns the Workshop item.'
+}
+
+$workshopRoot = if ($env:ZOMBOID_WORKSHOP_DIR) { $env:ZOMBOID_WORKSHOP_DIR }
+                else { Join-Path $env:USERPROFILE 'Zomboid\Workshop' }
+$itemRoot = [IO.Path]::GetFullPath((Join-Path $workshopRoot 'CookItForMe'))
+foreach ($entry in @(
+    @{ Key = 'content'; Relative = 'Contents' },
+    @{ Key = 'preview'; Relative = 'preview.png' },
+    @{ Key = 'description'; Relative = 'description.bbcode' }
+)) {
+    $expected = Join-Path $itemRoot $entry.Relative
+    if (-not $manifest.($entry.Key) -or [IO.Path]::GetFullPath($manifest.($entry.Key)) -ne $expected) {
+        throw "Manifest $($entry.Key) must point to $expected"
+    }
+}
+
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'build_workshop.ps1')
+if ($LASTEXITCODE -ne 0) { throw "Workshop build failed ($LASTEXITCODE)." }
+
+$uploadArgs = @('upload', '--manifest-path', $manifestPath)
+if ($PatchNote) { $uploadArgs += @('--patchnote', $PatchNote) }
+if ($DryRun) { $uploadArgs += '--dry-run' }
+Push-Location (Split-Path -Parent $UploaderPath)
+try {
+    & $UploaderPath @uploadArgs
+    if ($LASTEXITCODE -ne 0) { throw "Steam upload failed ($LASTEXITCODE)." }
+} finally {
+    Pop-Location
+}
+if ($DryRun) { Write-Host 'Dry run completed; nothing uploaded.' }
+else { Write-Host 'Published: https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464' }

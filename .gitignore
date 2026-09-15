@@ -5,6 +5,10 @@
 Thumbs.db
 desktop.ini
 
+# Local IDE and generated image-prompt files
+.idea/
+output/
+
 # исходники арта (в мод не нужны)
 *.psd
 *.aseprite
