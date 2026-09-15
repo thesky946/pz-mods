@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $ForgeRoot = Join-Path $PSScriptRoot 'forge-live'
 $BridgeTarget = Join-Path $env:USERPROFILE 'Zomboid\mods\ForgeLiveBridge'
-$WorkshopTarget = Join-Path $env:USERPROFILE 'Zomboid\Workshop\CookItForMe\Contents\mods\CookItForMe'
+$WorkshopTarget = Join-Path $env:USERPROFILE 'Zomboid\Workshop\CookItForMe\Contents\mods\CookItForMe\42'
 $BridgeDir = Join-Path $env:USERPROFILE 'Zomboid\Lua\forgelive'
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js is required for Forge Live.' }
@@ -46,7 +46,9 @@ Copy-Item -LiteralPath (Join-Path $bridgeSource '*') -Destination $BridgeTarget 
 $json = @{
     mods = @(@{
         id = 'CookItForMe'
-        src = $ProjectRoot.Replace('\', '/')
+        # Watch only the Build 42 source tree. Watching the repository root also
+        # receives transient .git object events while commits are being written.
+        src = (Join-Path $ProjectRoot '42').Replace('\', '/')
         targets = @($WorkshopTarget.Replace('\', '/'))
         bridgeDir = $BridgeDir.Replace('\', '/')
         reloadFrom = 'target'
