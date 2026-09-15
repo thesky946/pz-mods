@@ -1,5 +1,5 @@
 version=1
 title=MMA Combat
-description=TODO: describe MMA Combat.
-tags=Build 42;Misc
+description=Server-authoritative unarmed spinning-kick combat technique. Build 42.
+tags=Build 42;Weapons
 visibility=private

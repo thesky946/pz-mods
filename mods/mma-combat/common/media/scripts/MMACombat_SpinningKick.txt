@@ -1,0 +1,37 @@
+module Base
+{
+    item BareHands
+    {
+        DisplayName = Spinning Kick,
+        DisplayCategory = Weapon,
+        ItemType = base:weapon,
+        Weight = 0.0,
+        Icon = Axe,
+        Categories = base:unarmed,
+        DoorDamage = 0,
+        DoorHitSound = BareHandsHit,
+        EnduranceMod = 2.2,
+        HitFloorSound = BareHandsHit,
+        HitSound = BareHandsHit,
+        KnockBackOnNoDeath = true,
+        KnockdownMod = 2.2,
+        MaxDamage = 1.2,
+        MaxHitcount = 1,
+        MaxRange = 1.25,
+        MinAngle = 0.72,
+        MinDamage = 0.8,
+        MinimumSwingtime = 1.2,
+        PushBackMod = 0.9,
+        SplatBloodOnNoDeath = false,
+        SplatNumber = 1,
+        SubCategory = Swinging,
+        SwingAmountBeforeImpact = 0.32,
+        SwingAnim = Shove,
+        SwingSound = BareHandsHit,
+        Swingtime = 1.2,
+        TreeDamage = 0,
+        WeaponSprite = null,
+        WeaponWeight = 0,
+        Tags = base:nomaintenancexp;base:barehands,
+    }
+}
