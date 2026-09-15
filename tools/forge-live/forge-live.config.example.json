@@ -1,0 +1,15 @@
+{
+  "$comment": "Copy to forge-live.config.json and edit paths. 'src' is where you EDIT; 'targets' are where the game LOADS from; 'bridgeDir' is <Zomboid cache>/Lua/forgelive.",
+  "mods": [
+    {
+      "id": "MyMod",
+      "src": "C:/dev/my-pz-mods/MyMod",
+      "targets": [
+        "C:/Users/YOU/Zomboid/mods/MyMod",
+        "C:/Users/YOU/Zomboid/Workshop/MyMod/Contents/mods/MyMod"
+      ],
+      "bridgeDir": "C:/Users/YOU/Zomboid/Lua/forgelive",
+      "reloadFrom": "target"
+    }
+  ]
+}

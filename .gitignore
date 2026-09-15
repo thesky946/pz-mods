@@ -8,7 +8,8 @@ desktop.ini
 # Local IDE and generated image-prompt files
 .idea/
 output/
-tools/forge-live/
+tools/forge-live/node_modules/
+tools/.forge-live-git-backup/
 
 # исходники арта (в мод не нужны)
 *.psd

@@ -1,0 +1,4 @@
+name=Forge Live Bridge (dev tool)
+id=ForgeLiveBridge
+description=Hot-reload bridge for mod developers. Watches for reload commands from the forge-live CLI and calls the engine's reloadLuaFile(). Reload-only by design: no eval, no network. Do not ship on public servers; this is a development tool.
+modversion=0.2.0
