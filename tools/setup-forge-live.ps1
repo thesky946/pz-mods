@@ -1,11 +1,16 @@
 # Installs the local-only Forge Live bridge and watcher used by tools\dev.cmd.
 # Nothing from this script is included in the Workshop upload.
 
+[CmdletBinding()]
+param([string]$Mod = 'cook-it-for-me')
+
 $ErrorActionPreference = 'Stop'
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$modInfo = Resolve-PzMod $Mod
+$ProjectRoot = $modInfo.Root
 $ForgeRoot = Join-Path $PSScriptRoot 'forge-live'
 $BridgeTarget = Join-Path $env:USERPROFILE 'Zomboid\mods\ForgeLiveBridge'
-$WorkshopTarget = Join-Path $env:USERPROFILE 'Zomboid\Workshop\CookItForMe\Contents\mods\CookItForMe\42'
+$WorkshopTarget = Join-Path $env:USERPROFILE (Join-Path 'Zomboid\Workshop' "$($modInfo.Id)\Contents\mods\$($modInfo.Id)\42")
 $BridgeDir = Join-Path $env:USERPROFILE 'Zomboid\Lua\forgelive'
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js is required for Forge Live.' }
@@ -47,7 +52,7 @@ Get-ChildItem -LiteralPath $bridgeSource -Force | ForEach-Object {
 
 $json = @{
     mods = @(@{
-        id = 'CookItForMe'
+        id = $modInfo.Id
         # Watch only the Build 42 source tree. Watching the repository root also
         # receives transient .git object events while commits are being written.
         src = (Join-Path $ProjectRoot '42').Replace('\', '/')

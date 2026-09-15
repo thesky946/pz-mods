@@ -3,8 +3,11 @@ import path from "node:path";
 import lua from "luaparse";
 import { snapshot, planReload } from "./reload-core.mjs";
 const root = path.resolve(process.argv[2]);
+const modInfo = fs.readFileSync(path.join(root, "42", "mod.info"), "utf8");
+const modId = /^id=(.+)$/m.exec(modInfo)?.[1]?.trim();
+if (!modId) throw new Error("mod.info has no id=");
 const files = snapshot(path.join(root, "42"), lua.parse);
-planReload(files, files, "CookItForMe_");
+planReload(files, files, modId + "_");
 snapshot(path.join(root, "tests"), lua.parse);
 const translate = path.join(root, "common/media/lua/shared/Translate");
 for (const category of ["UI", "Sandbox"]) {

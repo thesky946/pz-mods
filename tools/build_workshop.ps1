@@ -21,18 +21,20 @@
 # UTF-8 BOM, so non-ASCII text here breaks the parser on a non-English locale.
 
 [CmdletBinding()]
-param([string]$DestinationRoot, [switch]$SkipChecks)
+param([string]$Mod = 'cook-it-for-me', [string]$DestinationRoot, [switch]$SkipChecks)
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$modInfo = Resolve-PzMod $Mod
 if (-not $SkipChecks) {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1')
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1') -Mod $Mod
     if ($LASTEXITCODE -ne 0) { throw 'Checks failed; build stopped.' }
 }
 
 function Fail($msg) { Write-Host $msg -ForegroundColor Red; exit 1 }
 function Warn($msg) { Write-Host $msg -ForegroundColor Yellow }
 
-$Src      = Split-Path -Parent $PSScriptRoot
-$ModName  = "CookItForMe"
+$Src      = $modInfo.Root
+$ModName  = $modInfo.Id
 $DestRoot = if ($DestinationRoot) { $DestinationRoot }
             elseif ($env:ZOMBOID_WORKSHOP_DIR) { $env:ZOMBOID_WORKSHOP_DIR }
             else { Join-Path $env:USERPROFILE "Zomboid\Workshop" }

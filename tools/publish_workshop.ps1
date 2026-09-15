@@ -1,17 +1,22 @@
 # Build and update the existing Steam Workshop item in one command.
 [CmdletBinding()]
 param(
+    [string]$Mod = 'cook-it-for-me',
     [string]$PatchNote,
     [switch]$DryRun,
     [string]$UploaderPath = $env:STEAM_UPLOADER_PATH
 )
 
 $ErrorActionPreference = 'Stop'
-$repo = Split-Path -Parent $PSScriptRoot
-$manifestPath = Join-Path $repo 'mod-manifest.json'
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$modInfo = Resolve-PzMod $Mod
+$manifestPath = Join-Path $modInfo.Root 'mod-manifest.json'
 $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-if ($manifest.appid -ne 108600 -or $manifest.workshopid -ne 3801601464) {
-    throw 'Manifest must target Project Zomboid item 3801601464.'
+if ($manifest.appid -ne 108600) {
+    throw 'Manifest must target Project Zomboid (appid 108600).'
+}
+if (-not $manifest.workshopid) {
+    throw "Set workshopid in $manifestPath before publishing."
 }
 
 if (-not $UploaderPath) {
@@ -29,7 +34,7 @@ if (-not $DryRun -and -not (Get-Process steam -ErrorAction SilentlyContinue)) {
 
 $workshopRoot = if ($env:ZOMBOID_WORKSHOP_DIR) { $env:ZOMBOID_WORKSHOP_DIR }
                 else { Join-Path $env:USERPROFILE 'Zomboid\Workshop' }
-$itemRoot = [IO.Path]::GetFullPath((Join-Path $workshopRoot 'CookItForMe'))
+$itemRoot = [IO.Path]::GetFullPath((Join-Path $workshopRoot $modInfo.Id))
 foreach ($entry in @(
     @{ Key = 'content'; Relative = 'Contents' },
     @{ Key = 'preview'; Relative = 'preview.png' },
@@ -41,12 +46,12 @@ foreach ($entry in @(
     }
 }
 
-$releaseRoot = Join-Path ([IO.Path]::GetTempPath()) ('CookItForMe-release-' + [guid]::NewGuid().ToString('N'))
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'build_workshop.ps1') -DestinationRoot $releaseRoot
+$releaseRoot = Join-Path ([IO.Path]::GetTempPath()) ($modInfo.Id + '-release-' + [guid]::NewGuid().ToString('N'))
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'build_workshop.ps1') -Mod $Mod -DestinationRoot $releaseRoot
 if ($LASTEXITCODE -ne 0) { throw "Workshop build failed ($LASTEXITCODE)." }
 
 # Upload an isolated snapshot, never the directory currently used by the dev game.
-$releaseItem = Join-Path $releaseRoot 'CookItForMe'
+$releaseItem = Join-Path $releaseRoot $modInfo.Id
 $manifest.content = Join-Path $releaseItem 'Contents'
 $manifest.preview = Join-Path $releaseItem 'preview.png'
 $manifest.description = Join-Path $releaseItem 'description.bbcode'
@@ -64,4 +69,4 @@ try {
     Pop-Location
 }
 if ($DryRun) { Write-Host 'Dry run completed; nothing uploaded.' }
-else { Write-Host 'Published: https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464' }
+else { Write-Host "Published: https://steamcommunity.com/sharedfiles/filedetails/?id=$($manifest.workshopid)" }

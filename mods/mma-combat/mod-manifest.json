@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/SimKDT/Steam-Uploader-rs/refs/heads/main/manifest_schema/mod-manifest-schema.json",
+  "appid": 108600,
+  "workshopid": null,
+  "content": "",
+  "preview": "",
+  "title": "MMA Combat",
+  "description": "",
+  "visibility": 0,
+  "tags": ["Build 42", "Misc"]
+}

@@ -1,5 +1,7 @@
 # Разработка
 
+Все команды ниже выполняются из корня `pz-mods`; мод обозначается slug `cook-it-for-me`.
+
 ## Первый запуск
 
 1. В Project Zomboid включить в текущем сохранении `Cook It For Me` и `Forge Live Bridge (dev tool)`.
@@ -7,7 +9,7 @@
 3. В корне репозитория запустить:
 
 ```powershell
-.\tools\dev.cmd
+.\tools\dev.cmd cook-it-for-me
 ```
 
 `dev.cmd` сам установит локальный Forge Live bridge при первом запуске, соберёт мод в `%USERPROFILE%\Zomboid\Workshop\CookItForMe`, запустит offline Lua-тесты и начнёт следить за `42\`.
@@ -43,8 +45,8 @@ Watcher намеренно следит только за `42\`: просмот�
 После изменения `mod.info`, переводов JSON, `.txt` scripts, изображений, моделей или звуков, а также добавления, удаления или переименования Lua-модуля:
 
 1. Остановить watcher. Для новой структуры Lua он выводит RESTART REQUIRED и больше не отправляет reload; последующие корректные Lua-правки только копирует.
-2. Закрыть PZ. Выполнить `powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev.ps1`, чтобы синхронизировать также удаления и не-Lua-файлы.
-3. Запустить PZ, снова войти в мир и запустить `tools\dev.cmd`.
+2. Закрыть PZ. Выполнить `powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev.ps1 -Mod cook-it-for-me`, чтобы синхронизировать также удаления и не-Lua-файлы.
+3. Запустить PZ, снова войти в мир и запустить `tools\dev.cmd cook-it-for-me`.
 
 Перезапуск при новой структуре — консервативное ограничение текущего инструмента: успешная загрузка нового файла через reloadLuaFile не доказывает, что require и уже существующие ссылки обновились. В локальном логе после добавления модулей были require-failed; полноценная загрузка новых зависимостей без перезапуска пока не проверена.
 
@@ -59,7 +61,7 @@ Watcher намеренно следит только за `42\`: просмот�
 
 ## Диагностика и релиз
 
-- Полная проверка без синхронизации: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1`. Отсутствие Lua-раннера считается ошибкой.
+- Полная проверка без синхронизации: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1 -Mod cook-it-for-me`. Отсутствие Lua-раннера считается ошибкой.
 - `dev.ps1` проверяет проект до синхронизации. `publish_workshop.ps1` проверяет проект и собирает изолированную копию в `%TEMP%/CookItForMe-release-*/CookItForMe`; авторская папка работающей игры не пересоздаётся при публикации.
 - Forge Live создаёт `watcher.lock` в каталоге bridge. Второй процесс отказывается работать; запись завершившегося процесса восстанавливается автоматически.
 - Обновление надёжности меняет контракт сессии, обработчики и переводы: после синхронизации нужен один полный перезапуск PZ. Затем снова запустить `tools/dev.cmd`.
@@ -70,8 +72,8 @@ Watcher намеренно следит только за `42\`: просмот�
 - После установки архитектурного рефакторинга с новыми Lua-модулями полностью перезапустить игру; hot reload старой монолитной версии недостаточен.
 
 - Игровые ошибки: `%USERPROFILE%\Zomboid\console.txt`.
-- Разовая полная синхронизация и offline-тесты: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev.ps1`.
-- Публикация: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\publish_workshop.ps1`.
+- Разовая полная синхронизация и offline-тесты: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev.ps1 -Mod cook-it-for-me`.
+- Публикация: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\publish_workshop.ps1 -Mod cook-it-for-me`.
 
 `Forge Live Bridge` — локальный инструмент разработки; в Workshop-релиз мода он не входит.
 
@@ -81,7 +83,7 @@ Watcher намеренно следит только за `42\`: просмот�
 После подписки и завершения загрузки выполнить:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1 -Start -Launch
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1 -Mod cook-it-for-me -Start -Launch
 ```
 
 Скрипт требует закрытую игру и остановленный `tools\dev.cmd`, переносит авторскую
@@ -89,11 +91,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribu
 `3801601464`. Тестировать в отдельном тестовом сохранении. Вернуть разработку:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1 -Stop
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1 -Mod cook-it-for-me -Stop
 ```
 
 Пока режим активен, `dev.ps1` откажется синхронизировать staging. Статус:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1 -Mod cook-it-for-me
 ```

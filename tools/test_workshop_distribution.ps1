@@ -1,6 +1,7 @@
 # Switch between the local author staging copy and the downloaded Workshop release.
 [CmdletBinding(DefaultParameterSetName = 'Status')]
 param(
+    [string]$Mod = 'cook-it-for-me',
     [Parameter(Mandatory, ParameterSetName = 'Start')][switch]$Start,
     [Parameter(Mandatory, ParameterSetName = 'Stop')][switch]$Stop,
     [Parameter(ParameterSetName = 'Start')][switch]$Launch,
@@ -9,8 +10,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$modId = 'CookItForMe'
-$workshopId = '3801601464'
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$modInfo = Resolve-PzMod $Mod
+$modId = $modInfo.Id
+$manifest = Get-Content -LiteralPath (Join-Path $modInfo.Root 'mod-manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$workshopId = [string]$manifest.workshopid
+if (-not $workshopId) { throw "Mod '$Mod' has no workshopid in mod-manifest.json." }
 $ZomboidRoot = [IO.Path]::GetFullPath($ZomboidRoot)
 $staging = Join-Path $ZomboidRoot "Workshop\$modId"
 $stateRoot = Join-Path $ZomboidRoot "DistributionTests\$modId"

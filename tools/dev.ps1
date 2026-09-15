@@ -9,14 +9,17 @@
 
 [CmdletBinding()]
 param(
+    [string]$Mod = 'cook-it-for-me',
     [switch]$Watch,
     [switch]$Launch,
     [switch]$SkipTests
 )
 
 $ErrorActionPreference = 'Stop'
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
-$ModName = 'CookItForMe'
+. (Join-Path $PSScriptRoot 'lib.ps1')
+$modInfo = Resolve-PzMod $Mod
+$ProjectRoot = $modInfo.Root
+$ModName = $modInfo.Id
 $WorkshopRoot = if ($env:ZOMBOID_WORKSHOP_DIR) { $env:ZOMBOID_WORKSHOP_DIR } else { Join-Path $env:USERPROFILE 'Zomboid\Workshop' }
 $Target = Join-Path $WorkshopRoot "$ModName\Contents\mods\$ModName"
 $DistributionTestState = Join-Path $env:USERPROFILE "Zomboid\DistributionTests\$ModName\state.json"
@@ -55,7 +58,7 @@ function Sync-Mod {
 
 function Run-Tests {
     if ($SkipTests) { return }
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1')
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check.ps1') -Mod $Mod
     if ($LASTEXITCODE -ne 0) { throw 'Checks failed; sync stopped.' }
 }
 
