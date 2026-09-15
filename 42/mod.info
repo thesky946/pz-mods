@@ -13,4 +13,5 @@ category=features
 version=0.1.0
 modversion=0.1.0
 versionMin=42.0
+require=NeatUI_Framework
 author=thesky
