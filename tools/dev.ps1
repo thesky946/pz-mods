@@ -19,8 +19,13 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $ModName = 'CookItForMe'
 $WorkshopRoot = if ($env:ZOMBOID_WORKSHOP_DIR) { $env:ZOMBOID_WORKSHOP_DIR } else { Join-Path $env:USERPROFILE 'Zomboid\Workshop' }
 $Target = Join-Path $WorkshopRoot "$ModName\Contents\mods\$ModName"
+$DistributionTestState = Join-Path $env:USERPROFILE "Zomboid\DistributionTests\$ModName\state.json"
 
 function Fail([string]$Message) { throw $Message }
+
+if (Test-Path -LiteralPath $DistributionTestState) {
+    Fail "Workshop distribution-test mode is active. Restore author staging with tools\\test_workshop_distribution.ps1 -Stop before running dev.ps1."
+}
 
 function Assert-Source {
     foreach ($path in @('42\mod.info', '42\media', 'common\media', 'workshop\workshop.txt')) {

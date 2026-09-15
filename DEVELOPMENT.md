@@ -74,3 +74,26 @@ Watcher намеренно следит только за `42\`: просмот�
 - Публикация: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\publish_workshop.ps1`.
 
 `Forge Live Bridge` — локальный инструмент разработки; в Workshop-релиз мода он не входит.
+
+## Проверка скачанной Workshop-версии
+
+Не включать авторскую staging-копию и Steam-копию с одним `id=CookItForMe` одновременно.
+После подписки и завершения загрузки выполнить:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1 -Start -Launch
+```
+
+Скрипт требует закрытую игру и остановленный `tools\dev.cmd`, переносит авторскую
+копию из `Zomboid\Workshop` в обратимый backup и убеждается, что Steam скачал item
+`3801601464`. Тестировать в отдельном тестовом сохранении. Вернуть разработку:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1 -Stop
+```
+
+Пока режим активен, `dev.ps1` откажется синхронизировать staging. Статус:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_workshop_distribution.ps1
+```

@@ -8,6 +8,7 @@ desktop.ini
 # Local IDE and generated image-prompt files
 .idea/
 output/
+.tools/
 tools/forge-live/node_modules/
 tools/.forge-live-git-backup/
 
