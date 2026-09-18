@@ -87,8 +87,8 @@ if (Test-Path $SrcPreview) {
     Copy-Item $SrcPoster (Join-Path $Out "preview.png") -Force
 }
 
-# Steam Workshop validates a 256x256 PNG. Keep the high-resolution source artwork in
-# the repository and scale only the copied upload asset.
+# Steam Workshop validates a 256x256 PNG. Normalize the copied upload asset when a
+# source image uses different dimensions.
 $OutPreview = Join-Path $Out "preview.png"
 $tempPreview = "$OutPreview.tmp"
 Add-Type -AssemblyName System.Drawing
