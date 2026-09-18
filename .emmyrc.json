@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/main/crates/emmylua_code_analysis/resources/schema.json",
+  "runtime": {
+    "version": "Lua5.1"
+  },
+  "diagnostics": {
+    "globals": [
+      "NeatTool"
+    ]
+  },
+  "workspace": {
+    "library": [
+      ".types/umbrella/library"
+    ]
+  }
+}
