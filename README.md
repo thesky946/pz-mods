@@ -9,7 +9,7 @@ Source, tests, tooling, and release metadata for my Project Zomboid Build 42 mod
 | Mod | Status | Description |
 | --- | --- | --- |
 | [Cook It For Me](mods/cook-it-for-me) | [Published on Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464) | Plans and performs real vanilla cooking from nearby cookware and ingredients. |
-| [ATA Bus Upgrade](mods/ata-bus-upgrade-b42) | Development | A server-authoritative Build 42 performance patch for AutoTsar's bus. |
+| [ATA Bus Upgrade](mods/ata-bus-upgrade-b42) | [Published on Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3803915890) | A server-authoritative Build 42 performance patch for AutoTsar's bus. |
 | [MMA Combat](mods/mma-combat) | Experimental | Unarmed-combat and animation research, including the Blender authoring sources. |
 
 <p align="center">

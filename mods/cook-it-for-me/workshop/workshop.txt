@@ -34,6 +34,7 @@ description=
 description=[b]Build 42 • Single-player only[/b]
 description=Requires reachable matching cookware and a powered, non-microwave stove. Safe to add to an existing save: it adds no items or recipes.
 description=
+description=[url=https://github.com/thesky946/pz-mods/tree/main/mods/cook-it-for-me][img]https://raw.githubusercontent.com/thesky946/pz-mods/main/assets/github-source-banner.png[/img][/url]
 description=[url=https://github.com/thesky946/pz-mods/tree/main/mods/cook-it-for-me][b]Source code[/b][/url] • [url=https://github.com/thesky946/pz-mods/issues][b]Bug reports[/b][/url]
 description=
 description=----------------------------

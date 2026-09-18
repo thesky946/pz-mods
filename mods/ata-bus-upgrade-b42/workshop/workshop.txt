@@ -27,6 +27,9 @@ description=[*]Every existing ATA bus on the map upgrades automatically the next
 description=[*]No need to respawn, replace or rebuild your current bus
 description=[/list]
 description=
+description=[url=https://github.com/thesky946/pz-mods/tree/main/mods/ata-bus-upgrade-b42][img]https://raw.githubusercontent.com/thesky946/pz-mods/main/assets/github-source-banner.png[/img][/url]
+description=[url=https://github.com/thesky946/pz-mods/tree/main/mods/ata-bus-upgrade-b42]Source code[/url] • [url=https://github.com/thesky946/pz-mods/issues]Bug reports[/url]
+description=
 description=This is an unofficial add-on. It contains no assets from the original ATA Bus mod. All credit for the buses and tuning system belongs to the original Autotsar authors.
 description=
 description=[h2]Check Out My Other Mods[/h2]
