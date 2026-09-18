@@ -34,6 +34,8 @@ description=
 description=[b]Build 42 • Single-player only[/b]
 description=Requires reachable matching cookware and a powered, non-microwave stove. Safe to add to an existing save: it adds no items or recipes.
 description=
+description=[url=https://github.com/thesky946/pz-mods/tree/main/mods/cook-it-for-me][b]Source code[/b][/url] • [url=https://github.com/thesky946/pz-mods/issues][b]Bug reports[/b][/url]
+description=
 description=----------------------------
 description=
 description=[h2]Выберите блюдо. Персонаж приготовит его сам.[/h2]
@@ -69,6 +71,8 @@ description=[/list]
 description=
 description=[b]Build 42 • Только одиночная игра[/b]
 description=Нужны подходящая посуда и доступная рабочая не-микроволновая плита. Мод безопасно добавлять в существующее сохранение: он не добавляет предметов или рецептов.
+description=
+description=[url=https://github.com/thesky946/pz-mods/tree/main/mods/cook-it-for-me][b]Исходный код[/b][/url] • [url=https://github.com/thesky946/pz-mods/issues][b]Сообщить об ошибке[/b][/url]
 description=
 description=[h3]Copyright 2026 thesky. This item is not authorized for posting on Steam, except under the Steam account named thesky.[/h3]
 tags=Build 42;QoL;Misc

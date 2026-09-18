@@ -11,6 +11,9 @@ output/
 .tools/
 tools/forge-live/node_modules/
 tools/.forge-live-git-backup/
+__pycache__/
+*.py[cod]
+*.blend1
 
 # исходники арта (в мод не нужны)
 *.psd

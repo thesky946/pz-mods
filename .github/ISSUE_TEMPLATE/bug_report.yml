@@ -1,0 +1,68 @@
+name: Bug report
+description: Report a reproducible problem with one of the mods
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: dropdown
+    id: mod
+    attributes:
+      label: Mod
+      options:
+        - Cook It For Me
+        - ATA Bus Upgrade
+        - MMA Combat
+        - Forge Live
+    validations:
+      required: true
+
+  - type: input
+    id: game-build
+    attributes:
+      label: Project Zomboid build
+      placeholder: e.g. 42.12.3
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Describe the starting state, exact actions, and what happened.
+      placeholder: |
+        1. Place...
+        2. Select...
+        3. Start...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+
+  - type: textarea
+    id: mods
+    attributes:
+      label: Other enabled mods
+      description: List them or write "none".
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant console.txt output
+      description: Remove personal information, then paste the relevant log lines. Do not upload the entire file blindly.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I reproduced this on the latest Workshop version.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true

@@ -8,3 +8,7 @@ MVP: unequip weapons and attack. The mod overrides `Base.BareHands`, so the vani
 ```
 
 Before first publication, set workshopid in mod-manifest.json.
+
+## Motion-capture source
+
+`assets/source-mocap/135_07_mawashigeri.*` is trial 7 (Mawashigeri) from subject 135 of the [Carnegie Mellon University Graphics Lab Motion Capture Database](https://mocap.cs.cmu.edu/). The database permits use but does not permit direct resale of its data. It was created with funding from NSF EIA-0196217.
