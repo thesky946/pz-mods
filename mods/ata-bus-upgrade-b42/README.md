@@ -5,8 +5,6 @@
 
 An unofficial Project Zomboid Build 42 performance patch for the Army, Prison, and School buses from [Autotsar Tuning Atelier — Bus](https://steamcommunity.com/sharedfiles/filedetails/?id=3402812859).
 
-[![View source on GitHub](../../assets/github-source-banner.png)](https://github.com/thesky946/pz-mods/tree/main/mods/ata-bus-upgrade-b42)
-
 ![ATA Bus Upgrade Workshop preview](workshop/preview.png)
 
 ## Changes
