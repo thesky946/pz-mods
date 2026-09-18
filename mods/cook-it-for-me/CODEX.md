@@ -1,5 +1,7 @@
 # Cook It For Me
 
+Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464
+
 ## Текущее обновление надёжности
 
 Обязательная проверка из корня `pz-mods`: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1 -Mod cook-it-for-me`.

@@ -13,6 +13,11 @@ Cook.availableDishes = Catalog.availableDishes
 Cook.findCookware = Catalog.findCookware
 Cook.plan = Planner.plan
 
+function Cook.isMultiplayer()
+    return (type(isClient) == "function" and isClient())
+        or (type(isServer) == "function" and isServer())
+end
+
 function Cook.getSession()
     return Cook.session
 end
@@ -28,6 +33,10 @@ function Cook.fail(player, key)
 end
 
 function Cook.start(player, dishKey, plan)
+    if Cook.isMultiplayer() then
+        CookItForMe.diagnostic("start rejected: multiplayer unsupported")
+        return false, "MultiplayerUnsupported"
+    end
     if Cook.session and Cook.session.active then
         player:Say(getText("UI_CookItForMe_Busy"))
         return false, "Busy"

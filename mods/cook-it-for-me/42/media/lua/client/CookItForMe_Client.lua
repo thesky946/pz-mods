@@ -56,6 +56,7 @@ local function onCookingClick(player)
 end
 
 function CookItForMe.onFillWorldObjectContextMenu(player, context, worldobjects, test)
+    if CookItForMe.Cook.isMultiplayer() then return end
     if test and ISWorldObjectContextMenu.Test then return true end
 
     local playerObj = getSpecificPlayer(player)

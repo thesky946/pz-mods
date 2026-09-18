@@ -10,6 +10,7 @@ local tests = {
     "test_notification.lua",
     "test_reliability.lua",
     "test_scanner.lua",
+    "test_multiplayer.lua",
     "test_ui.lua",
 }
 for _, file in ipairs(tests) do

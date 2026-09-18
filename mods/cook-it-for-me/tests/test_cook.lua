@@ -126,4 +126,14 @@ eq(CookItForMe.getSettings(e.player), old)
 eq(old.radius, 7)
 eq(old.frozenPenalty, 0.5)
 eq(old.custom, true)
+
+-- Multiplayer must be rejected before planning, mutation, or action enqueueing.
+e = Env.new()
+isClient = function() return true end
+local started, failure = e.cook.start(e.player, "Soup")
+eq(started, false, "multiplayer start rejected")
+eq(failure, "MultiplayerUnsupported")
+eq(#e.queue, 0, "multiplayer start queues nothing")
+eq(e.cook.getSession(), nil, "multiplayer start creates no session")
+isClient = nil
 print("COOK CHARACTERIZATION TESTS PASSED")
