@@ -66,7 +66,7 @@ Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=380160146
   media/lua/server/
     CookItForMe_Server.lua  заглушка; серверная логика отсутствует
 common/media/lua/shared/Translate/
-  EN|RU|ES|PTBR|CN|FR|TR/    локализация UI и sandbox-настроек
+  EN|RU|ES|PTBR|CN|FR|TR|DE/ локализация UI и sandbox-настроек
 tests/run.lua               все офлайн-тесты
 ARCHITECTURE.md              границы модулей и контракты
 workshop/                   Steam Workshop metadata и preview

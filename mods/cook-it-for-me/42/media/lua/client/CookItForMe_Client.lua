@@ -57,10 +57,11 @@ end
 
 function CookItForMe.onFillWorldObjectContextMenu(player, context, worldobjects, test)
     if CookItForMe.Cook.isMultiplayer() then return end
-    if test and ISWorldObjectContextMenu.Test then return true end
 
     local playerObj = getSpecificPlayer(player)
     if playerObj:getVehicle() then return end
+    if not Scanner.scanAround(playerObj, CookItForMe.CONTEXT_MENU_STOVE_RADIUS).stove then return end
+    if test and ISWorldObjectContextMenu.Test then return true end
 
     -- пункт без подменю — кликается напрямую, открывает план со всеми настройками
     context:addOption(getText("UI_CookItForMe_ContextMenu"), worldobjects, function()

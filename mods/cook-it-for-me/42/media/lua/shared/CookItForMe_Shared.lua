@@ -8,6 +8,9 @@ CookItForMe = CookItForMe or {}
 -- и id= в mod.info (его читает игра, а не Lua).
 CookItForMe.ID = "CookItForMe"
 
+-- Пункт ПКМ показывается только рядом с доступной плитой. Меняй это значение для тестов в игре.
+CookItForMe.CONTEXT_MENU_STOVE_RADIUS = 4
+
 local LOG_TAG = "[" .. CookItForMe.ID .. "]"
 
 CookItForMe.DEFAULTS = {

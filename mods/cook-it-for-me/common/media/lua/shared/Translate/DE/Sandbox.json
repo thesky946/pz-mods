@@ -1,0 +1,5 @@
+{
+    "Sandbox_CookItForMe": "Cook It For Me",
+    "Sandbox_CookItForMe_Debug": "Debug-Protokollierung",
+    "Sandbox_CookItForMe_Debug_tooltip": "Schreibt ein detailliertes Mod-Protokoll in die console.txt: jeden Schritt des Kochvorgangs, durchsuchte Behälter, die Rezeptprüfung und ausgewählte Zutaten. Standardmäßig deaktiviert - nur zur Fehlersuche aktivieren."
+}
