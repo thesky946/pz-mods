@@ -2,31 +2,36 @@
 
 [![Checks](https://github.com/thesky946/pz-mods/actions/workflows/checks.yml/badge.svg)](https://github.com/thesky946/pz-mods/actions/workflows/checks.yml)
 
-Source, tests, tooling, and release metadata for my Project Zomboid Build 42 mods.
+Project Zomboid Build 42 mods built with explicit runtime contracts, offline game-API mocks, automated checks, and reproducible Workshop releases.
 
-## Mods
+## Published mods
 
-| Mod | Status | Description |
-| --- | --- | --- |
-| [Cook It For Me](mods/cook-it-for-me) | [Published on Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464) | Plans and performs real vanilla cooking from nearby cookware and ingredients. |
-| [ATA Bus Upgrade](mods/ata-bus-upgrade-b42) | [Published on Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3803915890) | A server-authoritative Build 42 performance patch for AutoTsar's bus. |
-| [MMA Combat](mods/mma-combat) | Experimental | Unarmed-combat and animation research, including the Blender authoring sources. |
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464"><img src="mods/cook-it-for-me/workshop/preview.png" alt="Cook It For Me" width="100%"></a>
+      <h3 align="center">Cook It For Me</h3>
+      <p>Plan a meal, approve the ingredients, and let your survivor perform the real vanilla cooking workflow.</p>
+      <p align="center"><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464"><strong>Steam Workshop</strong></a> · <a href="mods/cook-it-for-me"><strong>Source and docs</strong></a></p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3803915890"><img src="mods/ata-bus-upgrade-b42/workshop/preview.png" alt="ATA Bus Upgrade" width="100%"></a>
+      <h3 align="center">ATA Bus Upgrade</h3>
+      <p>A 500 HP Build 42 handling patch for AutoTsar's Army, Prison, and School buses, with server-authoritative multiplayer updates.</p>
+      <p align="center"><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3803915890"><strong>Steam Workshop</strong></a> · <a href="mods/ata-bus-upgrade-b42"><strong>Source and docs</strong></a></p>
+    </td>
+  </tr>
+</table>
 
-<p align="center">
-  <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464">
-    <img src="mods/cook-it-for-me/workshop/preview.png" alt="Cook It For Me — automatic cooking for Project Zomboid Build 42" width="640">
-  </a>
-</p>
+## Engineering highlights
 
-## What is worth looking at
+- Modular Lua 5.1 code with narrow responsibilities and documented state contracts.
+- Offline game-API mocks for success, failure, cancellation, duplicate callbacks, stale callbacks, replacement objects, and multiplayer authority.
+- Static validation for syntax, local dependencies, translations, metadata, and Workshop layout.
+- [Forge Live](tools/forge-live), a dependency-aware hot-reload bridge with restart detection and serialized game commands.
+- Isolated staging, validation, and publishing for existing Steam Workshop items.
 
-- A modular Lua 5.1 cooking pipeline with explicit planning, execution, cancellation, and stale-callback guards.
-- Offline game-contract mocks covering inventory transfers, replacement items, full containers, missing items, interrupted actions, and stove ownership.
-- Static checks for Lua syntax, local dependencies, translations, and Workshop layout.
-- [Forge Live](tools/forge-live), a local hot-reload bridge with dependency-aware reload ordering and restart detection.
-- Reproducible Workshop staging and publishing scripts.
-
-Cook It For Me's module boundaries and runtime contracts are documented in its [architecture notes](mods/cook-it-for-me/ARCHITECTURE.md). The local development and hot-reload workflow is in [DEVELOPMENT.md](mods/cook-it-for-me/DEVELOPMENT.md).
+The repository also contains [MMA Combat](mods/mma-combat), an experimental unarmed-combat and animation project with Blender authoring sources.
 
 ## Repository layout
 
@@ -50,6 +55,8 @@ Requirements: PowerShell, Node.js, npm, and Lua 5.1.
 ```
 
 The offline suite validates code and mocked game contracts. It does not replace verification inside Project Zomboid; game-only limitations are documented per mod.
+
+For Cook It For Me's hot-reload workflow, see [DEVELOPMENT.md](mods/cook-it-for-me/DEVELOPMENT.md). Its runtime boundaries and failure model are documented in [ARCHITECTURE.md](mods/cook-it-for-me/ARCHITECTURE.md).
 
 ## Issues
 

@@ -9,21 +9,52 @@ Automatic cooking for Project Zomboid Build 42. Pick a meal and approve the plan
 
 ## Features
 
-- Preview cookware, ingredients, spices, calories, and hunger before anything moves.
-- Search the player inventory, nested bags, reachable containers, and nearby floor items.
-- Choose maximum calories, minimum calories, or maximum hunger relief.
+- Preview the complete meal plan before anything moves.
+- Perform the workflow through real vanilla timed actions instead of instant crafting.
 - Cook soup, stew, stir-fry, and roasted vegetables using vanilla evolved recipes.
-- Use frozen ingredients with a proportional cooking-time penalty.
-- Cancel safely when danger approaches or the world no longer matches the approved plan.
+- Stop safely when danger approaches or the world no longer matches the approved plan.
+- Track stove ownership, cooking progress, and the exact dish object through completion.
 - English, Russian, Spanish, Brazilian Portuguese, Simplified Chinese, French, and Turkish UI.
 
 Build 42 and single-player only. The mod adds no items or recipes and is safe to add to an existing save.
+
+## How to use
+
+1. Right-click the world and choose **Cook It For Me**.
+2. Select a dish, ingredient strategy, and search radius.
+3. Review the exact cookware, ingredients, spices, calories, and hunger result.
+4. Press **Cook** and let the vanilla timed actions run.
+
+## Supported meals
+
+| Meal | Cookware | Water required |
+| --- | --- | --- |
+| Soup | Pot or Forged Pot | Yes |
+| Stew | Pot or Forged Pot | Yes |
+| Stir-fry | Frying Pan, Forged Pan, or Griddle Pan | No |
+| Roasted Vegetables | Roasting Pan | No |
+
+## Requirements and limits
+
+- A reachable powered non-microwave stove.
+- Compatible cookware and raw ingredients within the configured search radius.
+- A reachable water source for soup and stew.
+- Build 42 single-player; multiplayer execution is deliberately blocked because no network protocol is implemented.
+- Other mods that replace the tracked dish object during cooking are not guessed automatically; the session fails safely instead.
 
 ## Reliability model
 
 Cooking is an observed state machine, not a fire-and-forget action queue. Every step verifies the resulting game state before advancing. Sessions reject duplicate and stale callbacks, track the exact dish object, distinguish a stove enabled by the mod from an already-running stove, and converge success, failure, and cancellation through one cleanup path.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and runtime contracts.
+
+## Ingredient selection
+
+- Search the player inventory, nested bags, reachable containers, and nearby floor items.
+- Skip rotten, cooked, burnt, and already-composed food.
+- Use no more than two portions of one item type and respect the vanilla recipe's ingredient limit.
+- Choose maximum calories, minimum calories, or maximum hunger relief.
+- Allow frozen food with a cooking-time penalty proportional to the frozen share of the meal.
 
 ## Development
 

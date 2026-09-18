@@ -7,6 +7,21 @@ An unofficial Project Zomboid Build 42 performance patch for the Army, Prison, a
 
 ![ATA Bus Upgrade Workshop preview](workshop/preview.png)
 
+## Install and use
+
+1. Subscribe to [Autotsar Tuning Atelier — Bus](https://steamcommunity.com/sharedfiles/filedetails/?id=3402812859).
+2. Subscribe to [ATA Bus Upgrade](https://steamcommunity.com/sharedfiles/filedetails/?id=3803915890).
+3. Enable both mods. The hard dependency makes this patch load after `ATA_Bus`.
+4. Continue an existing save or server; loaded buses update automatically.
+
+Both the server and every client need both mods. No new save, wipe, vehicle respawn, or manual upgrade action is required.
+
+## Supported buses
+
+- ATA Army Bus
+- ATA Prison Bus
+- ATA School Bus
+
 ## Changes
 
 | Setting | Value |
@@ -27,8 +42,9 @@ The patch also retunes suspension compression, damping, travel, and rest length.
 - Loaded ATA buses are checked periodically and updated in place.
 - Repeated scans are idempotent and do not rewrite buses that already have the target values.
 - Runtime engine changes execute on the server and are transmitted to clients.
+- Unrelated vehicles and already-upgraded buses are left untouched.
 
-Both the server and every client need this mod and the original ATA Bus mod. `ATA_Bus` is declared as a hard dependency, so this patch loads after it.
+The vehicle scripts provide the target handling values at load time. A lightweight server scan every 300 ticks repairs engine power and top speed on buses that already existed before the patch was enabled.
 
 ## Repository layout
 
