@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "node --test cli/reload-core.test.mjs cli/reload-integration.test.mjs"
+    "test": "node --test cli/reload-core.test.mjs cli/reload-integration.test.mjs cli/status-store.test.mjs"
   },
   "dependencies": {
     "luaparse": "^0.3.1"

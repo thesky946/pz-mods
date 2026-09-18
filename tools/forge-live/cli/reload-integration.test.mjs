@@ -62,6 +62,12 @@ test("CLI stages complete batch before ordered requests; stops on negative ack",
       const expected = (fail ? ["Mod_A.lua"] : ["Mod_A.lua", "Mod_B.lua"])
         .map(name => path.join(f.target, "media/lua/shared", name).split(path.sep).join("/"));
       assert.deepEqual(commands, expected, "reload must invalidate the absolute-path require cache");
+      const status = JSON.parse(fs.readFileSync(path.join(f.bridge, "status.json"), "utf8"));
+      assert.equal(status.schema, 1);
+      assert.equal(status.state, "stopped");
+      assert.equal(status.batch.result, fail ? "reload-rejected" : "ok");
+      if (fail) assert.equal(status.reload, undefined);
+      else assert.equal(status.reload.file, "media/lua/shared/Mod_B.lua");
     } finally {
       clearInterval(timer);
       fs.rmSync(f.dir, { recursive: true, force: true });
@@ -79,7 +85,12 @@ test("new module stages without reload; syntax errors stage nothing", async () =
       assert.equal(result.code, 1);
       assert.equal(fs.existsSync(path.join(f.bridge, "cmd.txt")), false);
       assert.equal(fs.readFileSync(path.join(f.target, "media/lua/shared/Mod_A.lua"), "utf8"), invalid ? "return { version = 1 }" : "return { version = 2 }");
-      if (!invalid) assert.match(result.output, /RESTART REQUIRED/);
+      const status = JSON.parse(fs.readFileSync(path.join(f.bridge, "status.json"), "utf8"));
+      assert.equal(status.state, "stopped");
+      if (!invalid) {
+        assert.match(result.output, /RESTART REQUIRED/);
+        assert.equal(status.batch.result, "restart-required");
+      }
     } finally {
       fs.rmSync(f.dir, { recursive: true, force: true });
     }
