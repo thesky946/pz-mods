@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import lua from "luaparse";
 import { snapshot, planReload, serialQueue, batchScheduler, acquireBridgeLock } from "./reload-core.mjs";
+import { createStatusStore } from "./status-store.mjs";
 
 const args = process.argv.slice(2);
 const flag = name => {
@@ -24,11 +25,22 @@ const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const mods = config.mods.filter(mod => !onlyMod || mod.id === onlyMod);
 if (!mods.length) throw new Error("No matching mod.");
 const unlock = [];
-process.on("exit", () => { for (const release of unlock) release(); });
-process.on("SIGINT", () => process.exit(0));
-process.on("SIGTERM", () => process.exit(0));
+const statuses = new Map();
+let stopReason = "process exit";
+process.on("exit", () => {
+  for (const status of statuses.values()) status.stop(stopReason);
+  for (const release of unlock) release();
+});
+process.on("SIGINT", () => { stopReason = "SIGINT"; process.exit(0); });
+process.on("SIGTERM", () => { stopReason = "SIGTERM"; process.exit(0); });
 if (!dry) {
   for (const dir of new Set(mods.map(mod => path.resolve(mod.bridgeDir)))) unlock.push(acquireBridgeLock(dir));
+  for (const bridgeDir of new Set(mods.map(mod => path.resolve(mod.bridgeDir)))) {
+    const bridgeMods = mods.filter(mod => path.resolve(mod.bridgeDir) === bridgeDir).map(mod => mod.id);
+    const configuredConsole = mods.find(mod => path.resolve(mod.bridgeDir) === bridgeDir)?.consolePath ?? config.consolePath;
+    const consolePath = configuredConsole || path.resolve(bridgeDir, "..", "..", "console.txt");
+    statuses.set(bridgeDir, createStatusStore({ bridgeDir, mods: bridgeMods, consolePath }));
+  }
 }
 console.log("[forge-live] Lua 5.1 syntax gate ON; dependency batches; serialized mailbox.");
 
@@ -67,6 +79,7 @@ function inside(root, file) {
 
 function createRunner(mod, previous) {
   const root = path.resolve(mod.src);
+  const status = statuses.get(path.resolve(mod.bridgeDir));
   let blocked = false;
   return async function run(forceFile) {
     const current = snapshot(root, lua.parse);
@@ -84,6 +97,12 @@ function createRunner(mod, previous) {
       previous = current;
       return true;
     }
+    status.transition("reloading", {
+      batch: {
+        at: new Date().toISOString(), mod: mod.id, files: plan.order,
+        added: plan.added, removed: plan.removed, result: "staging",
+      },
+    });
     // Validate ALL sources before copying ANY of them, then copy ALL before reload.
     for (const relative of plan.order) {
       for (const target of mod.targets) {
@@ -95,6 +114,11 @@ function createRunner(mod, previous) {
     previous = current;
     if (plan.restart || blocked) {
       blocked = true;
+      const reason = plan.restart ? "module set changed" : "automatic reload already blocked";
+      status.transition(plan.restart ? "restart-required" : "blocked", {
+        reason,
+        batch: { result: plan.restart ? "restart-required" : "blocked" },
+      });
       console.error("[" + mod.id + "] RESTART REQUIRED: staged files only; automatic reload paused.");
       if (plan.added.length) console.error("Added: " + plan.added.join(", "));
       if (plan.removed.length) console.error("Removed: " + plan.removed.join(", "));
@@ -110,17 +134,29 @@ function createRunner(mod, previous) {
         result = await send(mod.bridgeDir, "reload", reloadPath);
       } catch (error) {
         blocked = true;
+        status.transition("blocked", {
+          reason: "Bridge I/O failed: " + error.message,
+          batch: { result: "bridge-error" },
+        });
         throw new Error("Bridge I/O failed; restart PZ and watcher: " + error.message);
       }
       if (!result.ok) {
         blocked = true;
+        status.transition("blocked", {
+          reason: relative + ": " + result.value,
+          batch: { result: "reload-rejected" },
+        });
         console.error("[" + mod.id + "] FAILED: " + relative + ": " + result.value);
         console.error("Batch stopped; restart PZ and this watcher before continuing.");
         return false;
       }
+      status.update({
+        reload: { at: new Date().toISOString(), mod: mod.id, file: relative, ok: true, value: result.value },
+      });
       // pcall(reloadLuaFile) is an acknowledgement, not proof of correct runtime behavior.
       console.log("[" + mod.id + "] RELOAD ACK: " + relative);
     }
+    status.transition("ready", { reason: null, batch: { result: "ok" } });
     return true;
   };
 }
@@ -140,20 +176,37 @@ if (onceFile) {
     const root = path.resolve(mod.src);
     const run = createRunner(mod, snapshot(root, lua.parse));
     const schedule = batchScheduler(run, error => {
+      statuses.get(path.resolve(mod.bridgeDir))?.update({
+        batch: { at: new Date().toISOString(), mod: mod.id, result: "validation-error", error: error.message },
+      });
       console.error("[" + mod.id + "] BLOCKED: " + error.message + ". Fix sources and save again.");
     });
     console.log("[" + mod.id + "] watching " + root);
     if (!dry) {
       // Queue before watcher requests so startup ping cannot overwrite a reload.
       send(mod.bridgeDir, "ping", "").then(reply => {
+        const status = statuses.get(path.resolve(mod.bridgeDir));
+        status.transition(reply.ok ? "ready" : "blocked", {
+          bridge: { at: new Date().toISOString(), ok: Boolean(reply.ok), value: reply.value },
+          ...(reply.ok ? { reason: null } : { reason: "Bridge ping failed: " + reply.value }),
+        });
         console.log("[" + mod.id + "] bridge: " + reply.value);
-      }).catch(error => console.error(error.message));
+      }).catch(error => {
+        statuses.get(path.resolve(mod.bridgeDir))?.transition("blocked", {
+          bridge: { at: new Date().toISOString(), ok: false, value: error.message },
+          reason: "Bridge ping failed: " + error.message,
+        });
+        console.error(error.message);
+      });
     }
     try {
       fs.watch(root, { recursive: true }, (_event, filename) => {
         if (!filename) { schedule(); return; }
         const file = filename.toString();
         if (/\.(txt|json|png|fbx|anim)$/i.test(file) || /mod\.info$/i.test(file)) {
+          statuses.get(path.resolve(mod.bridgeDir))?.transition("restart-required", {
+            reason: file + ": non-Lua asset changed",
+          });
           console.log("[" + mod.id + "] " + file + ": sync and restart PZ required.");
           return;
         }
