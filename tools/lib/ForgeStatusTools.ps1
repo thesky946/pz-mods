@@ -31,7 +31,8 @@ function Get-ForgeGameStatus {
             param($WatcherPid, $Kind)
             if ($Kind -eq 'game') { return @(Get-Process -Name 'ProjectZomboid64' -ErrorAction SilentlyContinue).Count -gt 0 }
             if (-not $WatcherPid) { return $false }
-            return $null -ne (Get-Process -Id $WatcherPid -ErrorAction SilentlyContinue)
+            $process = Get-Process -Id $WatcherPid -ErrorAction SilentlyContinue
+            return $null -ne $process -and $process.ProcessName -eq 'node'
         }
     )
 

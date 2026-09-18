@@ -28,14 +28,15 @@ export function createStatusStore({ bridgeDir, mods, consolePath, pid = process.
     return (value instanceof Date ? value : new Date(value)).toISOString();
   };
   const consoleOffset = consolePath && fs.existsSync(consolePath) ? fs.statSync(consolePath).size : 0;
+  const startedAt = timestamp();
   let status = {
     schema: 1,
     state: "starting",
-    updatedAt: timestamp(),
+    updatedAt: startedAt,
     watcher: {
       pid,
       mods: [...mods],
-      startedAt: timestamp(),
+      startedAt,
     },
     console: {
       path: consolePath ? path.resolve(consolePath) : null,
