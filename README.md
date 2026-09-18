@@ -56,7 +56,23 @@ Requirements: PowerShell, Node.js, npm, and Lua 5.1.
 
 The offline suite validates code and mocked game contracts. It does not replace verification inside Project Zomboid; game-only limitations are documented per mod.
 
-For Cook It For Me's hot-reload workflow, see [DEVELOPMENT.md](mods/cook-it-for-me/DEVELOPMENT.md). Its runtime boundaries and failure model are documented in [ARCHITECTURE.md](mods/cook-it-for-me/ARCHITECTURE.md).
+## Development workflow
+
+Every mod under `mods/<slug>/` uses the same check, staging, and hot-reload tooling. Start one watcher for the mod being developed:
+
+```powershell
+./tools/watch.cmd cook-it-for-me
+# or
+./tools/watch.cmd ata-bus-upgrade-b42
+```
+
+The watcher validates the project, installs the local Forge Live bridge when needed, stages the mod, and monitors its `42/` directory. Saving an existing Lua module reloads that module together with affected dependants in the running game.
+
+A `RELOAD ACK` confirms that the game accepted the reload request; it does not prove correct behavior. Check the game state and `%USERPROFILE%/Zomboid/console.txt`. Use only one watcher for the bridge.
+
+A game restart is required after adding, removing, or renaming Lua modules, or changing `mod.info`, translations, scripts, models, textures, sounds, or other boot-time resources. Test and documentation changes do not require a restart.
+
+See [Forge Live](tools/forge-live) for the shared tooling and limitations. [Cook It For Me development](mods/cook-it-for-me/DEVELOPMENT.md) is a concrete mod-specific workflow; its [architecture notes](mods/cook-it-for-me/ARCHITECTURE.md) document only that mod's runtime boundaries and failure model.
 
 ## Issues
 
