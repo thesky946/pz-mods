@@ -10,6 +10,7 @@ desktop.ini
 output/
 .tools/
 .worktrees/
+/docs/superpowers/
 tools/forge-live/node_modules/
 tools/.forge-live-git-backup/
 __pycache__/
