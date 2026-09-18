@@ -9,6 +9,7 @@ desktop.ini
 .idea/
 output/
 .tools/
+.worktrees/
 tools/forge-live/node_modules/
 tools/.forge-live-git-backup/
 __pycache__/
