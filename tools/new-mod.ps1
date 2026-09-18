@@ -48,7 +48,7 @@ try {
     Write-Utf8 (Join-Path $root 'tests\run.lua') "package.path = package.path .. ';../42/media/lua/shared/?.lua'`nlocal mod = require '${Id}_Shared'`nassert(mod.ID == '$Id')`nprint('ALL TESTS PASSED')`n"
     Write-Utf8 (Join-Path $root 'workshop\workshop.txt') "version=1`ntitle=$Name`ndescription=TODO: describe $Name.`ntags=Build 42;Misc`nvisibility=private`n"
     Write-Utf8 (Join-Path $root 'mod-manifest.json') "{`n  `"`$schema`": `"https://raw.githubusercontent.com/SimKDT/Steam-Uploader-rs/refs/heads/main/manifest_schema/mod-manifest-schema.json`",`n  `"appid`": 108600,`n  `"workshopid`": null,`n  `"content`": `"`",`n  `"preview`": `"`",`n  `"title`": $nameJson,`n  `"description`": `"`",`n  `"visibility`": 0,`n  `"tags`": [`"Build 42`", `"Misc`"]`n}`n"
-    $readme = "# $Name`n`n" + '```powershell' + "`n.\tools\check.ps1 -Mod $Slug`n.\tools\dev.cmd $Slug`n" + '```' + "`n`nBefore first publication, set workshopid in mod-manifest.json.`n"
+    $readme = "# $Name`n`n" + '```powershell' + "`n.\tools\check.ps1 -Mod $Slug`n.\tools\watch.cmd $Slug`n" + '```' + "`n`nBefore first publication, set workshopid in mod-manifest.json.`n"
     Write-Utf8 (Join-Path $root 'README.md') $readme
     Write-Image (Join-Path $root '42\poster.png') $Name
     Copy-Item -LiteralPath (Join-Path $root '42\poster.png') -Destination (Join-Path $root 'workshop\preview.png')

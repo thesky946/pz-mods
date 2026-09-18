@@ -1,0 +1,15 @@
+{
+    "$schema":  "https://raw.githubusercontent.com/SimKDT/Steam-Uploader-rs/refs/heads/main/manifest_schema/mod-manifest-schema.json",
+    "appid":  108600,
+    "content":  "C:\\Users\\User\\Zomboid\\Workshop\\ATABusUpgradeB42\\Contents",
+    "preview":  "C:\\Users\\User\\Zomboid\\Workshop\\ATABusUpgradeB42\\preview.png",
+    "title":  "AutoTsar Tuning Atelier - Bus Upgrade - 500 HP [B42 SP/MP]",
+    "description":  "C:\\Users\\User\\Zomboid\\Workshop\\ATABusUpgradeB42\\description.bbcode",
+    "visibility":  0,
+    "tags":  [
+                 "Build 42",
+                 "Vehicles",
+                 "Multiplayer"
+             ],
+    "workshopid":  3803915890
+}

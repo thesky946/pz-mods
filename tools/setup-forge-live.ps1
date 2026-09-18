@@ -1,4 +1,4 @@
-# Installs the local-only Forge Live bridge and watcher used by tools\dev.cmd.
+# Installs the local-only Forge Live bridge and watcher used by tools\watch.cmd.
 # Nothing from this script is included in the Workshop upload.
 
 [CmdletBinding()]

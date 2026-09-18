@@ -10,13 +10,10 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib.ps1')
 $modInfo = Resolve-PzMod $Mod
-$manifestPath = Join-Path $modInfo.Root 'mod-manifest.json'
-$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$sourceManifestPath = Join-Path $modInfo.Root 'mod-manifest.json'
+$manifest = Get-Content -LiteralPath $sourceManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($manifest.appid -ne 108600) {
     throw 'Manifest must target Project Zomboid (appid 108600).'
-}
-if (-not $manifest.workshopid) {
-    throw "Set workshopid in $manifestPath before publishing."
 }
 
 if (-not $UploaderPath) {
@@ -64,9 +61,37 @@ if ($DryRun) { $uploadArgs += '--dry-run' }
 Push-Location (Split-Path -Parent $UploaderPath)
 try {
     & $UploaderPath @uploadArgs
-    if ($LASTEXITCODE -ne 0) { throw "Steam upload failed ($LASTEXITCODE)." }
+    $uploadExitCode = $LASTEXITCODE
 } finally {
     Pop-Location
 }
+
+# On first publication SteamUploader creates the item and writes its new ID into the
+# isolated release manifest. Persist that ID even if the subsequent content update fails,
+# otherwise retrying would create an orphaned duplicate Workshop item.
+if (-not $DryRun -and (Test-Path -LiteralPath $manifestPath)) {
+    $uploadedManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($uploadedManifest.workshopid -and $uploadedManifest.workshopid -ne $manifest.workshopid) {
+        $sourceManifest = Get-Content -LiteralPath $sourceManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($sourceManifest.PSObject.Properties.Name -contains 'workshopid') {
+            $sourceManifest.workshopid = $uploadedManifest.workshopid
+        } else {
+            $sourceManifest | Add-Member -NotePropertyName workshopid -NotePropertyValue $uploadedManifest.workshopid
+        }
+        [IO.File]::WriteAllText($sourceManifestPath, ($sourceManifest | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+
+        $sourceWorkshop = Join-Path $modInfo.Root 'workshop\workshop.txt'
+        $workshopText = [IO.File]::ReadAllText($sourceWorkshop)
+        if ($workshopText -notmatch '(?m)^id=') {
+            [IO.File]::AppendAllText($sourceWorkshop, "id=$($uploadedManifest.workshopid)`r`n", [Text.UTF8Encoding]::new($false))
+        }
+        Write-Host "Saved new Workshop ID: $($uploadedManifest.workshopid)"
+    }
+}
+
+if ($uploadExitCode -ne 0) { throw "Steam upload failed ($uploadExitCode)." }
 if ($DryRun) { Write-Host 'Dry run completed; nothing uploaded.' }
-else { Write-Host "Published: https://steamcommunity.com/sharedfiles/filedetails/?id=$($manifest.workshopid)" }
+else {
+    $publishedManifest = Get-Content -LiteralPath $sourceManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Write-Host "Published: https://steamcommunity.com/sharedfiles/filedetails/?id=$($publishedManifest.workshopid)"
+}

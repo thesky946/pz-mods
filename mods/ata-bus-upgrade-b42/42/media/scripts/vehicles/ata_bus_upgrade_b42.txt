@@ -1,0 +1,53 @@
+module Base
+{
+    vehicle ATAArmyBus
+    {
+        engineForce = 5000,
+        maxSpeed = 100f,
+        offRoadEfficiency = 1.1,
+        engineQuality = 80,
+        rollInfluence = 0.8f,
+        steeringIncrement = 0.04,
+        steeringClamp = 0.3,
+        suspensionStiffness = 35,
+        suspensionCompression = 3.83,
+        suspensionDamping = 2.88,
+        maxSuspensionTravelCm = 10,
+        suspensionRestLength = 0.2f,
+        wheelFriction = 1.5f,
+    }
+
+    vehicle ATAPrisonBus
+    {
+        engineForce = 5000,
+        maxSpeed = 100f,
+        offRoadEfficiency = 1.1,
+        engineQuality = 80,
+        rollInfluence = 0.8f,
+        steeringIncrement = 0.04,
+        steeringClamp = 0.3,
+        suspensionStiffness = 35,
+        suspensionCompression = 3.83,
+        suspensionDamping = 2.88,
+        maxSuspensionTravelCm = 10,
+        suspensionRestLength = 0.2f,
+        wheelFriction = 1.5f,
+    }
+
+    vehicle ATASchoolBus
+    {
+        engineForce = 5000,
+        maxSpeed = 100f,
+        offRoadEfficiency = 1.1,
+        engineQuality = 80,
+        rollInfluence = 0.8f,
+        steeringIncrement = 0.04,
+        steeringClamp = 0.3,
+        suspensionStiffness = 35,
+        suspensionCompression = 3.83,
+        suspensionDamping = 2.88,
+        maxSuspensionTravelCm = 10,
+        suspensionRestLength = 0.2f,
+        wheelFriction = 1.5f,
+    }
+}

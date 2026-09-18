@@ -12,7 +12,7 @@ tools/                 общая инфраструктура: проверки
 
 ```powershell
 .\tools\check.ps1 -Mod cook-it-for-me
-.\tools\dev.cmd cook-it-for-me
+.\tools\watch.cmd cook-it-for-me
 .\tools\build_workshop.ps1 -Mod cook-it-for-me
 .\tools\publish_workshop.ps1 -Mod cook-it-for-me
 ```
@@ -25,4 +25,4 @@ tools/                 общая инфраструктура: проверки
 .\tools\new-mod.ps1 -Slug my-mod -Id MyMod -Name 'My Mod'
 ```
 
-Запуск hot reload двойным кликом: `tools\watch.cmd`. Выбор можно передать сразу: `tools\watch.cmd my-mod`.
+Запуск hot reload двойным кликом: `tools\watch.cmd` предложит выбрать мод. Выбор можно передать сразу: `tools\watch.cmd my-mod`.

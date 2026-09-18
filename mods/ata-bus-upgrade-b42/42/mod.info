@@ -1,0 +1,6 @@
+name=AutoTsar Tuning Atelier - Bus Upgrade - 500 HP [B42 SP/MP]
+id=ATABusUpgradeB42
+description=An unofficial 500 HP performance upgrade for Autotsar Tuning Atelier buses. Build 42 single-player and multiplayer compatible.
+poster=poster.png
+versionMin=42.0.0
+require=ATA_Bus

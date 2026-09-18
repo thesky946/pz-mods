@@ -1,0 +1,37 @@
+version=1
+title=AutoTsar Tuning Atelier - Bus Upgrade - 500 HP [B42 SP/MP]
+description=[h1]Your bus weighs like a tank. It should drive like one.[/h1]
+description=Tired of your full-size bus nearly stopping after hitting two zombies? Real school buses can be rated for roughly 15 metric tons gross weight. This performance patch gives the Autotsar Tuning Atelier Bus the power and momentum it deserves.
+description=
+description=[h2]What it changes[/h2]
+description=[list]
+description=[*]500 HP for every ATA Army, Prison and School Bus
+description=[*]100 top-speed setting (Project Zomboid vehicle value)
+description=[*]More responsive steering
+description=[*]Retuned suspension and handling based on the classic B41 upgrade
+description=[*]Automatically upgrades buses that already exist in your save
+description=[*]Server-authoritative engine update for multiplayer
+description=[/list]
+description=
+description=[h2]Requirements[/h2]
+description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3402812859]Autotsar Tuning Atelier - Bus[/url]
+description=
+description=Load this mod after ATA Bus. The dependency is enforced by the mod metadata.
+description=
+description=[h2]Compatibility[/h2]
+description=[list]
+description=[*]Project Zomboid Build 42
+description=[*]Single-player and multiplayer
+description=[*]Safe to add to an existing save or server - no wipe and no new world required
+description=[*]Every existing ATA bus on the map upgrades automatically the next time its area is loaded
+description=[*]No need to respawn, replace or rebuild your current bus
+description=[/list]
+description=
+description=This is an unofficial add-on. It contains no assets from the original ATA Bus mod. All credit for the buses and tuning system belongs to the original Autotsar authors.
+description=
+description=[h2]Check Out My Other Mods[/h2]
+description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464][img]https://images.steamusercontent.com/ugc/12598983632193710600/440750E0459B8E8FC7F39FFD13BC957F830024DF/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false[/img][/url]
+description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464]Cook It For Me - Auto Cooking & Nutrition[/url]
+tags=Build 42;Vehicles;Multiplayer
+visibility=public
+id=3803915890

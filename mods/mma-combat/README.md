@@ -4,7 +4,7 @@ MVP: unequip weapons and attack. The mod overrides `Base.BareHands`, so the vani
 
 ```powershell
 .\tools\check.ps1 -Mod mma-combat
-.\tools\dev.cmd mma-combat
+.\tools\watch.cmd mma-combat
 ```
 
 Before first publication, set workshopid in mod-manifest.json.

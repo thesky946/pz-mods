@@ -59,7 +59,7 @@ function Assert-WatcherStopped {
     if (-not (Test-Path -LiteralPath $lock)) { return }
     try { $owner = Get-Content -LiteralPath $lock -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return }
     if ($owner.pid -and (Get-Process -Id $owner.pid -ErrorAction SilentlyContinue)) {
-        throw "Stop tools\\dev.cmd first (Forge Live watcher PID $($owner.pid))."
+        throw "Stop tools\\watch.cmd first (Forge Live watcher PID $($owner.pid))."
     }
 }
 
@@ -96,4 +96,4 @@ if (-not (Test-Path -LiteralPath $backup)) { throw "Author staging backup not fo
 if (Test-Path -LiteralPath $staging) { throw "Refusing to overwrite author staging: $staging" }
 Move-Item -LiteralPath $backup -Destination $staging
 Remove-Item -LiteralPath $stateRoot -Recurse -Force
-Write-Host 'Development mode restored. Run tools\\dev.cmd before testing new source changes.' -ForegroundColor Green
+Write-Host 'Development mode restored. Run tools\\watch.cmd before testing new source changes.' -ForegroundColor Green
