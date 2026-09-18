@@ -61,6 +61,15 @@ Watcher намеренно следит только за `42\`: просмот�
 
 ## Диагностика и релиз
 
+Поиск символа одновременно в установленном vanilla Lua, Umbrella и именах Java-классов:
+
+```powershell
+.\tools\find-pz-api.ps1 -Query RecipeManager
+.\tools\find-pz-api.ps1 -Query IsoStove -Json
+```
+
+Результат `java-class` подтверждает наличие класса в `projectzomboid.jar`, но не сигнатуру метода. Для сигнатур сначала сверять Umbrella, затем установленный API игры.
+
 - Полная проверка без синхронизации: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1 -Mod cook-it-for-me`. Отсутствие Lua-раннера считается ошибкой.
 - `dev.ps1` проверяет проект до синхронизации. `publish_workshop.ps1` проверяет проект и собирает изолированную копию в `%TEMP%/CookItForMe-release-*/CookItForMe`; авторская папка работающей игры не пересоздаётся при публикации.
 - Forge Live создаёт `watcher.lock` в каталоге bridge. Второй процесс отказывается работать; запись завершившегося процесса восстанавливается автоматически.
