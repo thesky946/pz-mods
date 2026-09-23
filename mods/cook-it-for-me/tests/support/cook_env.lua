@@ -85,6 +85,7 @@ function Env.new(dishKey)
         queue = {},
         callbackEvents = {},
         trace = {},
+        uiSounds = {},
         now = 0,
         zombies = {},
         messages = {},
@@ -180,7 +181,7 @@ function Env.new(dishKey)
     getText = function(key) return key end
     getTimestampMs = function() return e.now end
     getPlayer = function() return e.player end
-    getSoundManager = function() return { playUISound = function() end } end
+    getSoundManager = function() return { playUISound = function(_, name) e.uiSounds[#e.uiSounds + 1] = name end } end
     Events = {
         OnGameBoot = { Add = function() end },
         OnTick = { Add = function(f) e.tick = f end },
@@ -299,7 +300,10 @@ function Env.new(dishKey)
                 table.remove(self.callbackEvents, 1)()
             elseif self.queue[1] then
                 local a = table.remove(self.queue, 1)
-                runAction(a, nil, function(callback) scheduleCallback(callback) end)
+                runAction(a, nil, function(callback)
+                    scheduleCallback(callback)
+                    if self.duplicateCallbacks then scheduleCallback(callback) end
+                end)
             else
                 self.now = self.now + 500
                 self.tick()

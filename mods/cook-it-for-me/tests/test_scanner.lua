@@ -31,6 +31,34 @@ end
 stove(-1, true)
 local good = stove(1, false)
 assert(Scanner.scanAround(e.player, 0).stove == good, "radius zero includes adjacent usable stove")
+local stoveApiCalls = 0
+for _, method in ipairs({ "isMicrowave", "isBroken", "getContainer" }) do
+    local original = good[method]
+    good[method] = function(...)
+        stoveApiCalls = stoveApiCalls + 1
+        return original(...)
+    end
+end
+local preparationScan = Scanner.scanAround(e.player, 0, false)
+assert(preparationScan.stove == nil and #preparationScan.stoves == 0 and stoveApiCalls == 0,
+    "preparation-only scan must not inspect stove state or containers")
+local sink = { class = "IsoObject", getSpriteName = function() return nil end,
+    getUsesExternalWaterSource = function() return true end,
+    hasExternalWaterSource = function() return false end, hasFluid = function() return false end }
+squares["0,1"].objects[#squares["0,1"].objects + 1] = sink
+assert(Scanner.scanAround(e.player, 1).sink == sink,
+    "plumbed sink is discovered even when its current fluid source reports no fluid")
+local vanillaSink = { class = "IsoObject", getSpriteName = function() return "fixtures_sinks_01_16" end,
+    getUsesExternalWaterSource = function() return false end,
+    hasExternalWaterSource = function() return false end, hasFluid = function() return false end,
+    getContainerCount = function() return 0 end }
+squares["0,-1"].objects[#squares["0,-1"].objects + 1] = vanillaSink
+local sinkScan = Scanner.scanAround(e.player, 1)
+local foundVanillaSink = false
+for _, found in ipairs(sinkScan.sinks) do
+    if found == vanillaSink then foundVanillaSink = true end
+end
+assert(foundVanillaSink, "vanilla sink sprite is discovered without external water flags")
 local far = stove(2, false)
 for y = -3, 3 do squares["1," .. y].wall = true end
 assert(Scanner.scanAround(e.player, 3).stove == nil, "inaccessible stoves behind continuous wall excluded")

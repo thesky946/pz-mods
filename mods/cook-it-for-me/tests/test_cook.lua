@@ -7,6 +7,7 @@ for _, dish in ipairs({ "Soup", "Stew", "Stir fry", "Roasted Vegetables" }) do
         local e = Env.new(dish)
         CookItForMe.getSettings(e.player).strategy = strategy
         local plan = assert(e.cook.plan(e.player, dish))
+        eq(plan.settings.finishCooking, true, "existing saves keep stove cooking enabled by default")
         eq(plan.direction, strategy)
         eq(plan.cookware, e.pot)
         eq(plan.picked.items[1], e.food)
@@ -32,8 +33,43 @@ for _, dish in ipairs({ "Soup", "Stew", "Stir fry", "Roasted Vegetables" }) do
         eq(e.on, false)
         eq(e:state().active, false)
         assert(e.messages[#e.messages]:find("UI_CookItForMe_Done", 1, true))
+        eq(#e.uiSounds, 1, "successful stove cooking still plays one completion sound")
     end
 end
+
+-- Preparation-only plans complete after ingredient actions without querying or using a stove.
+local prepOnly = Env.new()
+CookItForMe.getSettings(prepOnly.player).finishCooking = false
+prepOnly.broken = true
+prepOnly.stove.isBroken = function() error("stove must not be checked in preparation-only mode") end
+prepOnly.stove.getContainer = function() error("stove must not be checked in preparation-only mode") end
+prepOnly.stove.Activated = function() error("stove must not be checked in preparation-only mode") end
+prepOnly.stove.Toggle = function() error("stove must not be used in preparation-only mode") end
+local prepPlan, prepFailure = prepOnly.cook.plan(prepOnly.player, "Soup")
+assert(prepPlan, "preparation-only plan should not require a stove: " .. tostring(prepFailure))
+prepOnly.cook.start(prepOnly.player, "Soup", prepPlan)
+prepOnly:drain()
+eq(prepOnly:state().active, false, "preparation-only session completes after ingredients")
+eq(prepOnly:state().reason, "success")
+eq(not prepOnly.pot.cooked, true, "prepared dish remains uncooked")
+eq(prepOnly.pot.container, prepOnly.inv, "prepared dish remains in player inventory")
+eq(prepOnly.on, false, "preparation-only run leaves stove off")
+assert(prepOnly.messages[#prepOnly.messages]:find("UI_CookItForMe_PreparationComplete", 1, true), "preparation has a distinct completion message")
+eq(prepOnly.uiSounds[1], "StoveTimerExpired", "preparation completion plays the selected completion sound")
+eq(#prepOnly.uiSounds, 1, "preparation completion plays the sound only once")
+
+local silentPrep = Env.new()
+CookItForMe.getSettings(silentPrep.player).finishCooking = false
+CookItForMe.getSettings(silentPrep.player).completionSound = false
+local silentPlan = assert(silentPrep.cook.plan(silentPrep.player, "Soup"))
+silentPrep.cook.start(silentPrep.player, "Soup", silentPlan)
+silentPrep:drain()
+eq(#silentPrep.uiSounds, 0, "disabled completion sound remains silent after preparation")
+
+local noStovePrep = Env.new()
+CookItForMe.getSettings(noStovePrep.player).finishCooking = false
+noStovePrep.scan.stove = nil
+assert(noStovePrep.cook.plan(noStovePrep.player, "Soup"), "preparation-only plan should work without a stove in range")
 
 local failures = {
     { "NoStove", function(e) e.scan.stove = nil end },

@@ -5,6 +5,11 @@ local Executor = { REVISION = "reliable-executor-4" }
 
 function Executor.new(session)
     local execution = {}
+    local function playCompletionSound(player)
+        if not CookItForMe.getSettings(player).completionSound then return end
+        local ok, err = pcall(function() getSoundManager():playUISound("StoveTimerExpired") end)
+        if not ok then CookItForMe.diagnostic("completion sound failed: " .. tostring(err)) end
+    end
     local function finish(reason, key)
         if not session.active then return end
         local stage = session.stage
@@ -54,8 +59,15 @@ function Executor.new(session)
         for _, item in ipairs(plan.picked.spices) do
             steps[#steps + 1] = function(next) actions.add(player, plan.recipe, item, next) end
         end
-        steps[#steps + 1] = function(next) actions.toStove(player, plan.scan.stove, next) end
-        steps[#steps + 1] = function() actions.heat(player, plan.scan.stove, plan.recipe, plan.settings) end
+        if plan.settings.finishCooking then
+            steps[#steps + 1] = function(next) actions.toStove(player, plan.scan.stove, next) end
+            steps[#steps + 1] = function() actions.heat(player, plan.scan.stove, plan.recipe, plan.settings) end
+        else
+            steps[#steps + 1] = function()
+                finish("success", "PreparationComplete")
+                playCompletionSound(player)
+            end
+        end
         session.lastTickAt = getTimestampMs()
         session:run(steps)
     end
@@ -106,10 +118,7 @@ function Executor.new(session)
             finish("success")
             local key = burnt and "Burnt" or "Done"
             player:Say(getText("UI_CookItForMe_" .. key) .. ": " .. pot:getName())
-            if not burnt and CookItForMe.getSettings(player).completionSound then
-                local ok, err = pcall(function() getSoundManager():playUISound("StoveTimerExpired") end)
-                if not ok then CookItForMe.diagnostic("completion sound failed: " .. tostring(err)) end
-            end
+            if not burnt then playCompletionSound(player) end
         end)
     end
     return execution

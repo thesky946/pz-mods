@@ -22,6 +22,73 @@ test("frozen penalty and burn margin", function()
     assert(e.pot:getMinutesToBurn() > e.pot:getMinutesToCook())
 end)
 
+test("preparation-only ignores a broken stove and finishes uncooked", function()
+    local e = Env.new()
+    CookItForMe.getSettings(e.player).finishCooking = false
+    e.broken = true
+    e.stove.isBroken = function() error("prep-only must not query stove condition") end
+    e.stove.getContainer = function() error("prep-only must not query stove container") end
+    e.stove.Activated = function() error("prep-only must not query stove activation") end
+    e.stove.Toggle = function() error("prep-only must not toggle stove") end
+    local plan = assert(e.cook.plan(e.player, "Soup"))
+    assert(e.cook.start(e.player, "Soup", plan))
+    e.duplicateCallbacks = true
+    e:drain()
+    assert(not e:state().active and e:state().reason == "success")
+    assert(not e.pot.cooked and e.pot.container == e.inv)
+    assert(not e.on)
+    local prepared = 0
+    for _, message in ipairs(e.messages) do
+        if message == "UI_CookItForMe_PreparationComplete" then prepared = prepared + 1 end
+    end
+    assert(prepared == 1, "repeated action callbacks complete the plan once")
+end)
+
+test("preparation-only plan refuses missing ingredients before actions", function()
+    local e = Env.new()
+    CookItForMe.getSettings(e.player).finishCooking = false
+    local plan = assert(e.cook.plan(e.player, "Soup"))
+    e.source:Remove(e.food)
+    local started, failure = e.cook.start(e.player, "Soup", plan)
+    assert(started == false and failure == "PlanChanged")
+    assert(#e.queue == 0 and #e.pot.extra == 0)
+end)
+
+test("preparation-only cancellation does not touch the stove", function()
+    local e = Env.new()
+    CookItForMe.getSettings(e.player).finishCooking = false
+    e.stove.Toggle = function() error("cancelled prep-only run must not toggle stove") end
+    e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))
+    e.cook.cancel()
+    assert(not e:state().active and e:state().reason == "cancelled")
+    assert(not e.on)
+end)
+
+test("preparation-only refuses a missing item destination without heating", function()
+    local e = Env.new()
+    CookItForMe.getSettings(e.player).finishCooking = false
+    e.inv.full = true
+    e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))
+    e:drain()
+    assert(not e:state().active and e.food.container == e.source)
+    assert(not e.on)
+end)
+
+test("stale preparation-only callback cannot advance a later run", function()
+    local e = Env.new()
+    CookItForMe.getSettings(e.player).finishCooking = false
+    local plan = assert(e.cook.plan(e.player, "Soup"))
+    e.cook.start(e.player, "Soup", plan)
+    local staleCallback = e.queue[1].callback
+    e.cook.cancel()
+    e.cook.start(e.player, "Soup", plan)
+    local queued = #e.queue
+    staleCallback()
+    assert(#e.queue == queued, "old callback cannot append preparation actions")
+    e:drain()
+    assert(not e:state().active and e:state().reason == "success")
+end)
+
 test("mixed ingredients use frozen share and preserve burn margin", function()
     local e = Env.new(); e.food.frozen = true
     local fresh = e.source:AddItem(Env.item("Base.Carrot", 40))

@@ -34,6 +34,100 @@ function launch(f) {
   });
 }
 
+function launchTranslations(f, modId = "Mod", config = f.config) {
+  const process = spawn(globalThis.process.execPath, [
+    cli, "--config", config, "--mod", modId, "--translations",
+  ], { env: { ...globalThis.process.env, PZ_ALLOW_CONTROL: "1" }, windowsHide: true });
+  let output = "";
+  process.stdout.on("data", chunk => { output += chunk; });
+  process.stderr.on("data", chunk => { output += chunk; });
+  const guard = setTimeout(() => process.kill(), 1000);
+  return new Promise((resolve, reject) => {
+    process.on("error", reject);
+    process.on("close", code => { clearTimeout(guard); resolve({ code, output }); });
+  });
+}
+
+function startWatcher(f) {
+  const child = spawn(globalThis.process.execPath, [
+    cli, "--config", f.config, "--mod", "Mod",
+  ], { env: { ...globalThis.process.env, PZ_ALLOW_CONTROL: "1" }, windowsHide: true });
+  let output = "";
+  child.stdout.on("data", chunk => { output += chunk; });
+  child.stderr.on("data", chunk => { output += chunk; });
+  const commands = [];
+  let lastId, readyResolve, readyReject;
+  const ready = new Promise((resolve, reject) => { readyResolve = resolve; readyReject = reject; });
+  const timer = setInterval(() => {
+    const file = path.join(f.bridge, "cmd.txt");
+    if (!fs.existsSync(file)) return;
+    const [id, kind, payload] = fs.readFileSync(file, "utf8").replace(/\r?\n$/, "").split("\t");
+    if (!id || id === lastId) return;
+    lastId = id;
+    commands.push({ kind, payload });
+    fs.writeFileSync(path.join(f.bridge, "result.txt"), JSON.stringify({ id, ok: true, value: kind === "ping" ? "pong test" : "translations reloaded" }));
+    if (kind === "ping") readyResolve();
+  }, 5);
+  const guard = setTimeout(() => readyReject(new Error("watcher did not ping")), 2000);
+  const closed = new Promise(resolve => child.on("close", resolve));
+  return {
+    child,
+    commands,
+    get output() { return output; },
+    ready: ready.finally(() => clearTimeout(guard)),
+    stop: async () => { clearInterval(timer); child.kill(); await closed; },
+  };
+}
+
+test("translations command sends only the allowlisted reload and reports its acknowledgement", async () => {
+  for (const ok of [true, false]) {
+    const f = fixture();
+    let lastId, command, fixtureError;
+    const timer = setInterval(() => {
+      const file = path.join(f.bridge, "cmd.txt");
+      if (!fs.existsSync(file)) return;
+      const [id, kind, payload] = fs.readFileSync(file, "utf8").replace(/\r?\n$/, "").split("\t");
+      if (!id || id === lastId) return;
+      lastId = id;
+      try {
+        command = { kind, payload };
+        assert.equal(kind, "translations");
+        assert.equal(payload, "");
+      } catch (error) { fixtureError = error; }
+      fs.writeFileSync(path.join(f.bridge, "result.txt"), JSON.stringify({ id, ok, value: ok ? "translations reloaded" : "translation reload error" }));
+    }, 5);
+    try {
+      const result = await launchTranslations(f);
+      if (fixtureError) throw fixtureError;
+      assert.deepEqual(command, { kind: "translations", payload: "" });
+      assert.equal(result.code, ok ? 0 : 1, result.output);
+      assert.match(result.output, ok ? /translations reloaded/ : /translation reload error/);
+    } finally {
+      clearInterval(timer);
+      fs.rmSync(f.dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("translations command queues through an already running watcher", async () => {
+  const f = fixture();
+  const alternateConfig = path.join(f.dir, "alternate-config.json");
+  fs.writeFileSync(alternateConfig, JSON.stringify({ mods: [{
+    id: "AnotherMod", src: f.source, targets: [f.target], bridgeDir: f.bridge,
+  }] }));
+  const watcher = startWatcher(f);
+  try {
+    await watcher.ready;
+    const result = await launchTranslations(f, "AnotherMod", alternateConfig);
+    assert.equal(result.code, 0, `${result.output}\nwatcher=${watcher.output}\ncommands=${JSON.stringify(watcher.commands)}\nfiles=${fs.readdirSync(f.bridge)}`);
+    assert.deepEqual(watcher.commands.map(command => command.kind), ["ping", "translations"]);
+    assert.match(result.output, /translations reloaded/);
+  } finally {
+    await watcher.stop();
+    fs.rmSync(f.dir, { recursive: true, force: true });
+  }
+});
+
 test("CLI stages complete batch before ordered requests; stops on negative ack", async () => {
   for (const fail of [false, true]) {
     const f = fixture(), commands = [];

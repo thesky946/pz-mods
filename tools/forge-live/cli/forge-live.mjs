@@ -16,7 +16,9 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const configPath = flag("--config") || path.join(repo, "forge-live.config.json");
 const onlyMod = flag("--mod");
 const onceFile = flag("--once");
+const translations = args.includes("--translations");
 const dry = args.includes("--dry");
+if (translations && (dry || onceFile)) throw new Error("--translations is a live, one-shot command; do not combine it with --dry or --once.");
 if (!dry && process.env.PZ_ALLOW_CONTROL !== "1") {
   console.error("[forge-live] Set PZ_ALLOW_CONTROL=1 or use --dry.");
   process.exit(1);
@@ -24,8 +26,10 @@ if (!dry && process.env.PZ_ALLOW_CONTROL !== "1") {
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const mods = config.mods.filter(mod => !onlyMod || mod.id === onlyMod);
 if (!mods.length) throw new Error("No matching mod.");
+if (translations && mods.length !== 1) throw new Error("--translations requires exactly one mod selected with --mod.");
 const unlock = [];
 const statuses = new Map();
+let watcherOwnsTranslationsRequest = false;
 let stopReason = "process exit";
 process.on("exit", () => {
   for (const status of statuses.values()) status.stop(stopReason);
@@ -34,12 +38,24 @@ process.on("exit", () => {
 process.on("SIGINT", () => { stopReason = "SIGINT"; process.exit(0); });
 process.on("SIGTERM", () => { stopReason = "SIGTERM"; process.exit(0); });
 if (!dry) {
-  for (const dir of new Set(mods.map(mod => path.resolve(mod.bridgeDir)))) unlock.push(acquireBridgeLock(dir));
-  for (const bridgeDir of new Set(mods.map(mod => path.resolve(mod.bridgeDir)))) {
-    const bridgeMods = mods.filter(mod => path.resolve(mod.bridgeDir) === bridgeDir).map(mod => mod.id);
-    const configuredConsole = mods.find(mod => path.resolve(mod.bridgeDir) === bridgeDir)?.consolePath ?? config.consolePath;
-    const consolePath = configuredConsole || path.resolve(bridgeDir, "..", "..", "console.txt");
-    statuses.set(bridgeDir, createStatusStore({ bridgeDir, mods: bridgeMods, consolePath }));
+  if (translations) {
+    const bridgeDir = path.resolve(mods[0].bridgeDir);
+    try {
+      unlock.push(acquireBridgeLock(bridgeDir));
+    } catch (error) {
+      if (!String(error.message).startsWith("Bridge already owned by watcher PID ")) throw error;
+      watcherOwnsTranslationsRequest = true;
+    }
+  } else {
+    for (const dir of new Set(mods.map(mod => path.resolve(mod.bridgeDir)))) unlock.push(acquireBridgeLock(dir));
+  }
+  if (!watcherOwnsTranslationsRequest) {
+    for (const bridgeDir of new Set(mods.map(mod => path.resolve(mod.bridgeDir)))) {
+      const bridgeMods = mods.filter(mod => path.resolve(mod.bridgeDir) === bridgeDir).map(mod => mod.id);
+      const configuredConsole = mods.find(mod => path.resolve(mod.bridgeDir) === bridgeDir)?.consolePath ?? config.consolePath;
+      const consolePath = configuredConsole || path.resolve(bridgeDir, "..", "..", "console.txt");
+      statuses.set(bridgeDir, createStatusStore({ bridgeDir, mods: bridgeMods, consolePath }));
+    }
   }
 }
 console.log("[forge-live] Lua 5.1 syntax gate ON; dependency batches; serialized mailbox.");
@@ -70,6 +86,64 @@ function send(bridgeDir, type, payload, timeout = 6000) {
       }, 120);
     });
   });
+}
+
+function requestTranslationsThroughWatcher(mod) {
+  const bridgeDir = path.resolve(mod.bridgeDir);
+  const requestFile = path.join(bridgeDir, "translations.request.json");
+  const responseFile = path.join(bridgeDir, "translations.result.json");
+  const id = Date.now() + "-" + Math.floor(Math.random() * 1e9);
+  fs.writeFileSync(requestFile, JSON.stringify({ id }), { flag: "wx" });
+  return new Promise(resolve => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      try {
+        const response = JSON.parse(fs.readFileSync(responseFile, "utf8"));
+        if (response.id === id) {
+          clearInterval(timer);
+          fs.unlinkSync(responseFile);
+          resolve(response);
+          return;
+        }
+      } catch { /* response not ready */ }
+      if (Date.now() - started >= 30000) {
+        clearInterval(timer);
+        try {
+          const pending = JSON.parse(fs.readFileSync(requestFile, "utf8"));
+          if (pending.id === id) fs.unlinkSync(requestFile);
+        } catch { /* watcher may have claimed the request */ }
+        resolve({ ok: false, value: "timeout: running Forge Live watcher did not acknowledge the translation request" });
+      }
+    }, 120);
+  });
+}
+
+function serviceTranslationRequests(mod) {
+  const bridgeDir = path.resolve(mod.bridgeDir);
+  const requestFile = path.join(bridgeDir, "translations.request.json");
+  const responseFile = path.join(bridgeDir, "translations.result.json");
+  let active = false;
+  const poll = setInterval(() => {
+    if (active) return;
+    let request;
+    try { request = JSON.parse(fs.readFileSync(requestFile, "utf8")); }
+    catch { return; }
+    if (typeof request.id !== "string" || !/^[a-zA-Z0-9-]+$/.test(request.id)) return;
+    const claimedFile = requestFile + "." + request.id + ".processing";
+    try { fs.renameSync(requestFile, claimedFile); }
+    catch { return; }
+    active = true;
+    send(bridgeDir, "translations", "").then(result => {
+      fs.writeFileSync(responseFile, JSON.stringify({ ...result, id: request.id }));
+      console.log(`[${mod.id}] translations request: ${result.ok ? "reloaded" : "failed: " + result.value}`);
+    }).catch(error => {
+      fs.writeFileSync(responseFile, JSON.stringify({ id: request.id, ok: false, value: error.message }));
+    }).finally(() => {
+      try { fs.unlinkSync(claimedFile); } catch { /* already removed */ }
+      active = false;
+    });
+  }, 200);
+  poll.unref();
 }
 
 function inside(root, file) {
@@ -161,7 +235,18 @@ function createRunner(mod, previous) {
   };
 }
 
-if (onceFile) {
+if (translations) {
+  const mod = mods[0];
+  const result = watcherOwnsTranslationsRequest
+    ? await requestTranslationsThroughWatcher(mod)
+    : await send(mod.bridgeDir, "translations", "");
+  if (result.ok) {
+    console.log(`[${mod.id}] translations reloaded: ${result.value}`);
+  } else {
+    console.error(`[${mod.id}] translation reload failed: ${result.value}`);
+    process.exitCode = 1;
+  }
+} else if (onceFile) {
   const absolute = path.resolve(onceFile);
   const mod = mods.find(candidate => inside(path.resolve(candidate.src), absolute));
   if (!mod) throw new Error("File is outside configured mod sources.");
@@ -182,6 +267,7 @@ if (onceFile) {
       console.error("[" + mod.id + "] BLOCKED: " + error.message + ". Fix sources and save again.");
     });
     console.log("[" + mod.id + "] watching " + root);
+    if (!dry) serviceTranslationRequests(mod);
     if (!dry) {
       // Queue before watcher requests so startup ping cannot overwrite a reload.
       send(mod.bridgeDir, "ping", "").then(reply => {

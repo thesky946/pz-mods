@@ -16,11 +16,10 @@ local LOG_TAG = "[" .. CookItForMe.ID .. "]"
 CookItForMe.DEFAULTS = {
     strategy = "max",     -- "max" | "min" | "hunger"
     completionSound = true,
+    finishCooking = true,  -- нагревать блюдо после добавления ингредиентов
     radius = 1,           -- радиус поиска в тайлах; 0 = как proximity inventory (3x3)
     frozenPenalty = 0.5,  -- максимальный штраф при полностью замороженном составе
     debugFast = false,    -- скрытая опция: форсировать готовность через 5 секунд нагрева
-    panelW = 1040,        -- первый размер окна; дальше пользовательский размер сохраняется
-    panelH = 640,
 }
 
 -- Настройки лежат в ModData игрока (переживают перезагрузку)
@@ -37,6 +36,7 @@ function CookItForMe.getSettings(player)
     local radius = tonumber(s.radius)
     s.radius = radius and radius == radius and math.floor(math.max(0, math.min(30, radius))) or 1
     s.completionSound = s.completionSound ~= false
+    s.finishCooking = s.finishCooking ~= false
     s.frozenPenalty = math.max(0, math.min(2, tonumber(s.frozenPenalty) or 0.5))
     return s
 end

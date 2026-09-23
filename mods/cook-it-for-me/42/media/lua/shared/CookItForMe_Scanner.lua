@@ -9,13 +9,16 @@ local Catalog = require "CookItForMe_Dishes"
 
 local function isSinkObject(o)
     if instanceof(o, "IsoWorldInventoryObject") then return false end
-    -- IsoObject в B42 не имеет isWaterSource(); раковина = внешний водопровод
+    local spriteName = o:getSpriteName()
+    if spriteName and spriteName:match("^fixtures_sinks_01_%d+$") then return true end
+    -- Include plumbed/custom fixtures too; water availability is checked by the planner.
     return o:getUsesExternalWaterSource() or o:hasExternalWaterSource()
 end
 
--- scanAround(player, radius) -> { stove, sink, containers = {ItemContainer...}, floorItems = {InventoryItem...} }
+-- scanAround(player, radius, includeStoves) -> { stove, sink, containers = {ItemContainer...}, floorItems = {InventoryItem...} }
 -- radius == 0: 3x3 вокруг игрока + canReachTo, как у proximity inventory в ванили.
-function Scanner.scanAround(player, radius)
+function Scanner.scanAround(player, radius, includeStoves)
+    includeStoves = includeStoves ~= false
     radius = math.max(1, math.min(30, math.floor(tonumber(radius) or 1)))
     local cx, cy, cz = math.floor(player:getX()), math.floor(player:getY()), player:getZ()
     local cell = getCell()
@@ -78,14 +81,18 @@ function Scanner.scanAround(player, radius)
         local objs = sq:getObjects()
         for i = 0, objs:size() - 1 do
             local o = objs:get(i)
-            if instanceof(o, "IsoStove") and not o:isMicrowave() then
-                if not o:isBroken() and o:getContainer() and o:getContainer():isPowered()
-                    and AdjacentFreeTileFinder.Find(sq, player) then
-                    result.stoves[#result.stoves + 1] = o
-                    if not result.stove then result.stove = o end
+            if instanceof(o, "IsoStove") then
+                if includeStoves and not o:isMicrowave() then
+                    if not o:isBroken() and o:getContainer() and o:getContainer():isPowered()
+                        and AdjacentFreeTileFinder.Find(sq, player) then
+                        result.stoves[#result.stoves + 1] = o
+                        if not result.stove then result.stove = o end
+                    end
                 end
             elseif isSinkObject(o) then
-                if o:hasFluid() and AdjacentFreeTileFinder.Find(sq, player) then
+                -- Detect the fixture independently of its current water state. Planner
+                -- reports NoWater when hasFluid() is false; that must not look like NoSink.
+                if AdjacentFreeTileFinder.Find(sq, player) then
                     result.sinks[#result.sinks + 1] = o
                     if not result.sink then result.sink = o end
                 end

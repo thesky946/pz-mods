@@ -3,10 +3,13 @@ param(
     [Parameter(Mandatory)][ValidatePattern('^[a-z0-9]+(?:-[a-z0-9]+)*$')][string]$Slug,
     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z][A-Za-z0-9_]*$')][string]$Id,
     [Parameter(Mandatory)][ValidatePattern('^[^\r\n]+$')][string]$Name,
-    [Parameter(Mandatory)][ValidateSet('SP', 'MP', 'both', 'content-only')][string]$Support
+    [ValidateSet('SP', 'MP', 'both', 'content-only')][string]$Support
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $PSBoundParameters.ContainsKey('Support')) {
+    throw 'The -Support parameter is required. Choose SP, MP, both, or content-only.'
+}
 $repo = Split-Path -Parent $PSScriptRoot
 $root = Join-Path $repo (Join-Path 'mods' $Slug)
 if (Test-Path -LiteralPath $root) { throw "Mod already exists: $root" }

@@ -12,7 +12,7 @@ local Planner = {}
 -- Возвращает plan или nil + ключ ошибки.
 local function buildPlan(player, dishKey)
     local settings = CookItForMe.getSettings(player)
-    local scan = Scanner.scanAround(player, settings.radius)
+    local scan = Scanner.scanAround(player, settings.radius, settings.finishCooking)
     local collected = Scanner.collectFood(player, scan)
     log(string.format("PLAN SCAN: stove=%s sink=%s containers=%d floorItems=%d radius=%d",
         scan.stove and 1 or 0, scan.sink and 1 or 0, #scan.containers, #scan.floorItems, settings.radius))
@@ -20,19 +20,24 @@ local function buildPlan(player, dishKey)
     local dish = Catalog.DISHES[dishKey]
     if not dish then return nil, "NotEnough" end
 
-    if not scan.stove then return nil, "NoStove" end
-    if scan.stove:isBroken() then return nil, "NoPower" end
+    if settings.finishCooking then
+        local stove = scan.stove
+        if not stove then return nil, "NoStove" end
+        if stove:isBroken() then return nil, "NoPower" end
+        local cookware = Catalog.findCookware(collected, dishKey)
+        if not cookware then return nil, "NoCookware" end
+        if not stove:getContainer():hasRoomFor(player, cookware) then
+            local alternative
+            for _, candidate in ipairs(scan.stoves or {}) do
+                if candidate:getContainer():hasRoomFor(player, cookware) then alternative = candidate; break end
+            end
+            if not alternative then return nil, "NoRoom" end
+            scan.stove = alternative
+        end
+    end
 
     local cookware = Catalog.findCookware(collected, dishKey)
     if not cookware then return nil, "NoCookware" end
-    if not scan.stove:getContainer():hasRoomFor(player, cookware) then
-        local alternative
-        for _, stove in ipairs(scan.stoves or {}) do
-            if stove:getContainer():hasRoomFor(player, cookware) then alternative = stove; break end
-        end
-        if not alternative then return nil, "NoRoom" end
-        scan.stove = alternative
-    end
 
     if dish.needsWater then
         if not scan.sink then return nil, "NoSink" end
@@ -143,7 +148,7 @@ function Planner.validate(player, plan)
         if source.calories and item:getCalories() ~= source.calories then return false, "PlanChanged" end
         if source.hunger and item:getHungerChange() ~= source.hunger then return false, "PlanChanged" end
     end
-    local scan = Scanner.scanAround(player, CookItForMe.getSettings(player).radius)
+    local scan = Scanner.scanAround(player, CookItForMe.getSettings(player).radius, plan.settings.finishCooking)
     local collected = Scanner.collectFood(player, scan)
     local available = {}
     for _, list in ipairs({collected.cookware, collected.foods, collected.spices}) do
@@ -155,10 +160,12 @@ function Planner.validate(player, plan)
         for _, value in ipairs(list) do if value == target then return true end end
         return false
     end
-    local stove = plan.scan.stove
-    if not contains(scan.stoves, stove, scan.stove) then return false, "PlanChanged" end
-    if stove:isBroken() or not stove:getContainer():isPowered() then return false, "NoPower" end
-    if not stove:getContainer():hasRoomFor(player, plan.cookware) then return false, "NoRoom" end
+    if plan.settings.finishCooking then
+        local stove = plan.scan.stove
+        if not contains(scan.stoves, stove, scan.stove) then return false, "PlanChanged" end
+        if stove:isBroken() or not stove:getContainer():isPowered() then return false, "NoPower" end
+        if not stove:getContainer():hasRoomFor(player, plan.cookware) then return false, "NoRoom" end
+    end
     if plan.dish.needsWater then
         if not contains(scan.sinks, plan.scan.sink, scan.sink) then return false, "NoSink" end
         if not plan.scan.sink:hasFluid() then return false, "NoWater" end

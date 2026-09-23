@@ -58,6 +58,11 @@ try {
     & $luaPath run.lua
     if ($LASTEXITCODE -ne 0) { throw 'Lua tests failed.' }
 } finally { Pop-Location }
+Push-Location $repo
+try {
+    & $luaPath (Join-Path $PSScriptRoot 'forge-live\tests\bridge-translations.lua')
+    if ($LASTEXITCODE -ne 0) { throw 'Forge Live translation bridge test failed.' }
+} finally { Pop-Location }
 Push-Location (Join-Path $PSScriptRoot 'forge-live')
 try {
     & npm.cmd test

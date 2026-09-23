@@ -108,6 +108,7 @@ Full details and caveats in
 node cli/forge-live.mjs --mod MyMod          # watch, reload on save
 node cli/forge-live.mjs --dry                # gate + report only, write nothing
 node cli/forge-live.mjs --once path/to.lua   # one file, then exit
+node cli/forge-live.mjs --mod MyMod --translations # reload game translations, then exit
 ```
 
 ## Quick start (dedicated server)
@@ -212,10 +213,10 @@ expensive. If you are building something similar, these are the landmines:
 
 ## Security
 
-The bridge supports exactly two commands, `ping` and `reload`, and `reload` refuses
-anything that is not a `.lua`. There is **deliberately no `eval`**: a file-driven eval
-channel is remote code execution on the machine of whoever installs it. Add one to your
-own copy for local dev if you want it — it does not ship here.
+The bridge supports `ping`, `reload`, and the fixed `translations` action, which calls
+`Translator.loadFiles()`. `reload` refuses anything that is not a `.lua`. There is
+**deliberately no `eval`**: a file-driven eval channel is remote code execution on the
+machine of whoever installs it.
 
 **Development only.** Do not hand the bridge to players. Do not put it on a production
 server.

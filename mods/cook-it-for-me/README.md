@@ -3,7 +3,7 @@
 [![Steam Workshop](https://img.shields.io/badge/Steam_Workshop-Subscribe-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464)
 [![Checks](https://github.com/thesky946/pz-mods/actions/workflows/checks.yml/badge.svg)](https://github.com/thesky946/pz-mods/actions/workflows/checks.yml)
 
-Automatic cooking for Project Zomboid Build 42. Pick a meal and approve the plan; your survivor fetches the cookware, water, ingredients, and spices, cooks with vanilla timed actions, switches off the stove, and brings the result back.
+Automatic meal preparation for Project Zomboid Build 42. Pick a meal and approve the plan; your survivor fetches cookware, water, ingredients, and spices. By default, the mod also cooks the meal using vanilla timed actions. Turn off **Finish cooking until the dish is ready** to stop after adding the ingredients and leave the dish uncooked.
 
 ![Cook It For Me plan window](workshop/preview.png)
 
@@ -12,6 +12,7 @@ Automatic cooking for Project Zomboid Build 42. Pick a meal and approve the plan
 - Preview the complete meal plan before anything moves.
 - Perform the workflow through real vanilla timed actions instead of instant crafting.
 - Cook soup, stew, stir-fry, and roasted vegetables using vanilla evolved recipes.
+- Choose whether to finish cooking after all ingredients are added; the preference persists between plans.
 - Stop safely when danger approaches or the world no longer matches the approved plan.
 - Track stove ownership, cooking progress, and the exact dish object through completion.
 - English, Russian, Spanish, Brazilian Portuguese, Simplified Chinese, French, and Turkish UI.
@@ -36,7 +37,7 @@ Build 42 and single-player only. The mod adds no items or recipes and is safe to
 
 ## Requirements and limits
 
-- A reachable powered non-microwave stove.
+- A stove in range to open the planner. The default cooking mode also requires a reachable powered non-microwave stove; preparation-only mode does not check or use a heat source.
 - Compatible cookware and raw ingredients within the configured search radius.
 - A reachable water source for soup and stew.
 - Build 42 single-player; multiplayer execution is deliberately blocked because no network protocol is implemented.

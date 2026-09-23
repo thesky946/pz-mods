@@ -1,8 +1,8 @@
 -- ForgeLiveBridge_Client.lua
 -- PZ Forge Live: the in-game half of the hot-reload loop, for B42 mod development.
 --
--- WHAT IT DOES: watches a command file and, when asked to "reload <path.lua>",
--- calls the engine's own reloadLuaFile() on it. That is all.
+-- WHAT IT DOES: watches a command file and handles ping, Lua reload, and the
+-- fixed translation reload command. It does not evaluate arbitrary code.
 --
 -- WHAT IT DELIBERATELY DOES NOT DO: run arbitrary code. A file-driven eval
 -- channel is remote code execution on the machine of whoever installs it, so it
@@ -14,9 +14,10 @@
 -- PROTOCOL (files under <Zomboid>/Lua/forgelive/):
 --   cmd.txt     written by the CLI:  "<id>\treload\t<absolute path to .lua>\n"
 --   result.txt  written by us:       {"id":"..","ok":true,"value":".."}
+--               or "<id>\ttranslations\t\n" to reload game translation files
 
 ForgeLive = ForgeLive or { lastId = nil, ticks = 0, warned = false }
-ForgeLive.VERSION = "0.2.0"
+ForgeLive.VERSION = "0.3.0"
 
 local CMD = "forgelive/cmd.txt"
 
@@ -101,8 +102,16 @@ local function pump()
         doReload(id, payload)
     elseif kind == "ping" then
         reply(id, true, "pong v" .. ForgeLive.VERSION)
+    elseif kind == "translations" then
+        local ok, err = pcall(function() Translator.loadFiles() end)
+        if ok then
+            log("translations reloaded")
+            reply(id, true, "translations reloaded")
+        else
+            reply(id, false, "translation reload error: " .. tostring(err))
+        end
     else
-        reply(id, false, "unknown command (this bridge supports: ping, reload)")
+        reply(id, false, "unknown command (this bridge supports: ping, reload, translations)")
     end
 end
 
