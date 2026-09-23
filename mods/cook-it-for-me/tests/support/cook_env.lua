@@ -1,4 +1,5 @@
 -- Minimal PZ boundary doubles. This is not a simulation of the game engine.
+local Simulator = require "support/action_simulator"
 local Env = {}
 
 function Env.list(values)
@@ -78,7 +79,16 @@ function Env.new(dishKey)
         if name:match("^CookItForMe_") then package.loaded[name] = nil end
     end
     CookItForMe = nil
-    local e = { on = false, allowFrozen = false, queue = {}, trace = {}, now = 0, zombies = {}, messages = {} }
+    local e = {
+        on = false,
+        allowFrozen = false,
+        queue = {},
+        callbackEvents = {},
+        trace = {},
+        now = 0,
+        zombies = {},
+        messages = {},
+    }
     local function record(s) e.trace[#e.trace + 1] = s end
     e.inv, e.source, e.stoveInv = Env.container("inventory"), Env.container("cupboard"), Env.container("stove")
     e.square = { getX = function() return 0 end, getY = function() return 0 end }
@@ -179,9 +189,15 @@ function Env.new(dishKey)
     local function action(kind, perform)
         local a = { kind = kind, perform = perform }
         function a:setOnComplete(f) self.callback = f end
+        function a:isValidStart() return true end
+        function a:waitToStart() return false end
+        function a:start() end
+        function a:update() end
+        function a:complete() return true end
         function a:isValid() return true end
         function a:stop() e.queue = {} end
         function a:forceStop() self:stop() end
+        function a:forceCancel() self:stop() end
         return a
     end
     e.player.getVehicle = function() return nil end
@@ -233,15 +249,57 @@ function Env.new(dishKey)
         add = function(a) e.queue[#e.queue + 1] = a end,
         clear = function() e.queue = {} record("clear") end,
     }
+    local function scheduleCallback(callback)
+        e.callbackEvents[#e.callbackEvents + 1] = callback
+    end
+    local function runAction(a, faults, callbackScheduler)
+        local sim = Simulator.new({ faults = faults or {} })
+        local proxy = { effectKey = "action:" .. tostring(a) }
+        if a.item and a.srcContainer and a.srcContainer:contains(a.item) then
+            sim:place(a.item, a.srcContainer)
+        end
+        function proxy:isValidStart()
+            if faults and faults.rejectBeforeStart then return false end
+            return not a.isValidStart or a:isValidStart()
+        end
+        function proxy:waitToStart() return a.waitToStart and a:waitToStart() or false end
+        function proxy:start()
+            if a.start then a:start() end
+            if faults and faults.itemDisappears then self.itemUnavailable = true end
+            if faults and faults.destinationBecomesFull and a.destContainer then a.destContainer.full = true end
+        end
+        function proxy:update() if a.update then a:update() end end
+        function proxy:isValid()
+            if self.itemUnavailable then return false end
+            return not a.isValid or a:isValid()
+        end
+        function proxy:complete()
+            if not a.complete then return true end
+            return a:complete() ~= false
+        end
+        function proxy:perform(runningSim)
+            if a.perform then a:perform() end
+            if a.item and a.item:getContainer() then runningSim:place(a.item, a.item:getContainer()) end
+            if callbackScheduler and a.callback then callbackScheduler(a.callback, runningSim) end
+        end
+        function proxy:stop() if a.stop then a:stop() end end
+        function proxy:forceCancel()
+            if a.forceCancel then a:forceCancel()
+            elseif a.forceStop then a:forceStop() end
+        end
+        sim:queue(proxy)
+        sim:runUntilIdle()
+        sim:assertInvariants()
+        e.lastSimulator = sim
+        return sim
+    end
     function e:drain()
         for _ = 1, 100 do
-            local a = table.remove(self.queue, 1)
-            if a then
-                if a.isValid and not a:isValid() then a:stop()
-                else
-                    if a.perform then a.perform(a) end
-                    if a.callback then a.callback() end
-                end
+            if self.callbackEvents[1] then
+                table.remove(self.callbackEvents, 1)()
+            elseif self.queue[1] then
+                local a = table.remove(self.queue, 1)
+                runAction(a, nil, function(callback) scheduleCallback(callback) end)
             else
                 self.now = self.now + 500
                 self.tick()
@@ -252,6 +310,96 @@ function Env.new(dishKey)
     end
     function e:state()
         return self.cook.getSession and self.cook.getSession() or self.cook
+    end
+    function e:runScenario(id, faults)
+        if id == "cook.recipe.replacement.success" then
+            local old = self.pot
+            local plan = assert(self.cook.plan(self.player, "Soup"))
+            plan.picked.spices = {}
+            local effects = 0
+            local addItem = self.recipe.addItem
+            self.recipe.addItem = function(recipe, pot, ingredient, player)
+                effects = effects + 1
+                return addItem(recipe, pot, ingredient, player)
+            end
+            self.cook.start(self.player, "Soup", plan)
+            self:drain()
+            self.pot.cooked = true
+            self.tick()
+            self:drain()
+            local session = self:state()
+            local result = self.pot
+            local function present(container, item) return container:contains(item) end
+            local oldPresent = present(self.source, old) or present(self.inv, old) or present(self.stoveInv, old)
+            local resultLocations = (present(self.source, result) and 1 or 0)
+                + (present(self.inv, result) and 1 or 0)
+                + (present(self.stoveInv, result) and 1 or 0)
+            local passed = not session.active and session.reason == "success" and not oldPresent
+                and result.fullType == "Base.CookedDish" and effects == 1 and resultLocations == 1
+                and present(self.inv, result) and not self.on
+            local failureReason
+            if not passed then failureReason = session.reason or session.stage end
+            return {
+                status = passed and "pass" or "fail",
+                sessionActive = session.active,
+                sourceContains = present(self.source, result),
+                destinationContains = present(self.inv, result),
+                effectCount = effects,
+                stoveActive = self.on,
+                failureReason = failureReason,
+                oldObjectPresent = oldPresent,
+                resultFullType = result.fullType,
+                resultLocationCount = resultLocations,
+            }
+        end
+        assert(id == "cook.transfer.container.success", "unknown scenario: " .. tostring(id))
+        faults = faults or {}
+        local item = self.pot
+        local source, destination = self.source, self.inv
+        local transfer = ISInventoryTransferAction:new(self.player, item, source, destination, nil)
+        local effects = 0
+        local perform = transfer.perform
+        transfer.perform = function(self)
+            perform(self)
+            effects = effects + 1
+        end
+        local callbackCalled, callbackCount, callbackAttempts = false, 0, 0
+        transfer:setOnComplete(function()
+            callbackAttempts = callbackAttempts + 1
+            if callbackCalled then return end
+            callbackCalled = true
+            callbackCount = callbackCount + 1
+        end)
+        local sim
+        sim = runAction(transfer, faults, function(callback, runningSim)
+            if faults.staleCallbackAfterSession then
+                runningSim:schedule(1, callback)
+            else
+                scheduleCallback(callback)
+                if faults.duplicateCallback then scheduleCallback(callback) end
+            end
+        end)
+        while self.callbackEvents[1] do table.remove(self.callbackEvents, 1)() end
+        sim:runUntilIdle()
+        sim:assertInvariants()
+        local sourceContains = source:contains(item)
+        local destinationContains = destination:contains(item)
+        local passed = sim.state.status == "PASS" and not sourceContains and destinationContains
+            and effects == 1 and not self.on
+        local failureReason
+        if not passed then failureReason = sim.state.status end
+        return {
+            status = passed and "pass" or "fail",
+            sessionActive = sim.state.active,
+            sourceContains = sourceContains,
+            destinationContains = destinationContains,
+            effectCount = effects,
+            callbackCount = callbackCount,
+            callbackAttempts = callbackAttempts,
+            rejectedCallbackCount = sim.state.rejectedCallbacks,
+            stoveActive = self.on,
+            failureReason = failureReason,
+        }
     end
     e.cook = require "CookItForMe_Cook"
     return e

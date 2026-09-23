@@ -1,0 +1,922 @@
+{
+  "schema": 1,
+  "diagnostics": [
+    {
+      "file": "mods/ata-bus-upgrade-b42/42/media/lua/shared/ATABusUpgradeB42_Core.lua",
+      "code": "unnecessary-if",
+      "message": "Impossible `if` statement: this condition is always falsy",
+      "count": 1,
+      "explanation": "Existing compatibility fallback is intentionally unchanged in this tooling-only task."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `titleBarHeight`. ",
+      "count": 6,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `tabButtons`. ",
+      "count": 4,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `summaryCard`. ",
+      "count": 8,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `strategyLabel`. ",
+      "count": 4,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `strategyCombo`. ",
+      "count": 9,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `strategyButtons`. ",
+      "count": 4,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `soundButton`. ",
+      "count": 15,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `setVisible`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `savedPanelY`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `savedPanelX`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `savedPanelW`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `savedPanelH`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `resizeWidgetHeight`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `removeFromUIManager`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `rebuild`. ",
+      "count": 5,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `radiusSpin`. ",
+      "count": 6,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `radiusLabel`. ",
+      "count": 4,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `radiusHint`. ",
+      "count": 4,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `radiusButtons`. ",
+      "count": 4,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `prerender`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `player`. ",
+      "count": 9,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `plan`. ",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `persistGeometry`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onSwitchDish`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onStrategyChange`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onStrategyButton`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onRadiusChange`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onRadiusButton`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onCook`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `width`. ",
+      "count": 11,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onCompletionSoundChange`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `x`. ",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "unnecessary-if",
+      "message": "Impossible `if` statement: this condition is always falsy",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Shared.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `Debug`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Session.lua",
+      "code": "unnecessary-if",
+      "message": "Unnecessary `if` statement: this condition is always truthy",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Session.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onError`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Scanner.lua",
+      "code": "unnecessary-if",
+      "message": "Unnecessary `if` statement: this condition is always truthy",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Scanner.lua",
+      "code": "unnecessary-if",
+      "message": "Impossible `if` statement: this condition is always falsy",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Scanner.lua",
+      "code": "need-check-nil",
+      "message": "function addItem may be nil",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Scanner.lua",
+      "code": "assign-type-mismatch",
+      "message": "Cannot assign `nil` to `IsoGridSquare`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Planner.lua",
+      "code": "param-type-mismatch",
+      "message": "expected `ArrayList<ItemContainer>` but found `ArrayList<unknown>`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Forecast.lua",
+      "code": "unused",
+      "message": "dish is never used, if this is intentional, prefix it with an underscore: _dish",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Forecast.lua",
+      "code": "need-check-nil",
+      "message": "calories value may be nil",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_FoodLogic.lua",
+      "code": "unused",
+      "message": "nutrition is never used, if this is intentional, prefix it with an underscore: _nutrition",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Executor.lua",
+      "code": "unnecessary-if",
+      "message": "Unnecessary `if` statement: this condition is always truthy",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Executor.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseTimedAction` for `preserveOtherActions`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Executor.lua",
+      "code": "assign-type-mismatch",
+      "message": "Cannot assign `number` to `integer`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Cook.lua",
+      "code": "unnecessary-if",
+      "message": "Unnecessary `if` statement: this condition is always truthy",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Cook.lua",
+      "code": "unnecessary-if",
+      "message": "Impossible `if` statement: this condition is always falsy",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Actions.lua",
+      "code": "unused",
+      "message": "player is never used, if this is intentional, prefix it with an underscore: _player",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Actions.lua",
+      "code": "unnecessary-if",
+      "message": "Unnecessary `if` statement: this condition is always truthy",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Actions.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `cookItForMeSession`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Actions.lua",
+      "code": "redundant-parameter",
+      "message": "expected 0 parameters but found 1",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Actions.lua",
+      "code": "redefined-local",
+      "message": "Redefined local variable `world`",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Actions.lua",
+      "code": "param-type-mismatch",
+      "message": "expected `IsoObject` but found `nil`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "unused",
+      "message": "index is never used, if this is intentional, prefix it with an underscore: _index",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "unused",
+      "message": "DIRECTION_LABELS is never used, if this is intentional, prefix it with an underscore: _DIRECTION_LABELS",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "unused",
+      "message": "COL2 is never used, if this is intentional, prefix it with an underscore: _COL2",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "unresolved-require",
+      "message": "Cannot resolve module `neatui_framework/scrollview/niscrollview`.",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "unresolved-require",
+      "message": "Cannot resolve module `neatui_framework/scrollview/niscrollbar`.",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "unresolved-require",
+      "message": "Cannot resolve module `neatui_framework/neattool/neattool_truncatetext`.",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "unnecessary-if",
+      "message": "Unnecessary `if` statement: this condition is always truthy",
+      "count": 5,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `y`. ",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Shared.lua",
+      "code": "unnecessary-if",
+      "message": "Impossible `if` statement: this condition is always falsy",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onCompletionSoundButton`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `key`. ",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `soundButton`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `savedPanelY`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `savedPanelX`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `savedPanelW`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `savedPanelH`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `radiusSpin`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `radiusLabel`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `radiusHint`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `radiusButtons`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `lines`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `dishRail`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `details`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `cookButton`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `controlsTop`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `content`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `completionSoundTick`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `closeButton`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `activeIndex`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "assign-type-mismatch",
+      "message": "Cannot assign `number` to `integer`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "assign-type-mismatch",
+      "message": "Cannot assign `integer` to `string?`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "assign-type-mismatch",
+      "message": "Cannot assign `(V|string)` to `string`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "assign-type-mismatch",
+      "message": "Cannot assign `(-1|0|1)` to `string?`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "unnecessary-if",
+      "message": "Unnecessary `if` statement: this condition is always truthy",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "unnecessary-if",
+      "message": "Impossible `if` statement: this condition is always falsy",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `addOption`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "return-type-mismatch",
+      "message": "Annotations specify that return value 1 has a type of `nil`, returning value of type `true?` here instead. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "redundant-return-value",
+      "message": "Annotations specify that at most 0 return value(s) are required, found 1 returned here instead.",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "redundant-parameter",
+      "message": "expected 0 parameters but found 2",
+      "count": 2,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "call-non-callable",
+      "message": "Cannot call expression of type `never`.",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `strategyButtons`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `lines`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `strategyCombo`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `summaryCard`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `isCollapsed`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `height`. ",
+      "count": 8,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `entries`. ",
+      "count": 7,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `drawText`. ",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `drawRectBorder`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `dishRail`. ",
+      "count": 5,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `details`. ",
+      "count": 6,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `createChildren`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `cookButton`. ",
+      "count": 8,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `content`. ",
+      "count": 22,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `completionSoundTick`. ",
+      "count": 6,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `closeButton`. ",
+      "count": 5,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `close`. ",
+      "count": 4,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `addChild`. ",
+      "count": 14,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `activeIndex`. ",
+      "count": 7,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "redundant-parameter",
+      "message": "expected 0 parameters but found 3",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "param-type-mismatch",
+      "message": "expected `string` but found `(V|string)`. ",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "need-check-nil",
+      "message": "function row:gmatch may be nil",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "need-check-nil",
+      "message": "a may be nil",
+      "count": 6,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISCollapsableWindow` for `player`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISCollapsableWindow` for `lines`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISCollapsableWindow` for `entries`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISCollapsableWindow` for `activeIndex`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISButton` for `renderTitle`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISButton` for `radiusGlyph`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISButton` for `fullTitle`. ",
+      "count": 3,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISButton` for `entry`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `title`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `tabButtons`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `strategyLabel`. ",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/shared/CookItForMe_Shared.lua",
+      "code": "unnecessary-if",
+      "message": "Unnecessary `if` statement: this condition is always truthy",
+      "count": 1,
+      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    }
+  ]
+}

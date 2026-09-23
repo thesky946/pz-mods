@@ -1,0 +1,6 @@
+name=PZ Mods Test Harness (development only)
+id=PzModsTestHarness
+require=CookItForMe
+description=Development-only allowlisted regression scenario harness. Never publish this mod to Workshop.
+author=CJ Storrs
+versionMin=42.20.0

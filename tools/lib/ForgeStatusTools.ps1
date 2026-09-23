@@ -21,6 +21,18 @@ function Test-ForgeRelevantLine {
     return $false
 }
 
+function ConvertTo-ForgeDateTimeOffset {
+    param([Parameter(Mandatory)]$Value)
+
+    if ($Value -is [DateTimeOffset]) { return $Value }
+    if ($Value -is [DateTime]) { return [DateTimeOffset]$Value }
+    return [DateTimeOffset]::Parse(
+        [string]$Value,
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::None
+    )
+}
+
 function Get-ForgeGameStatus {
     [CmdletBinding()]
     param(
@@ -83,12 +95,11 @@ function Get-ForgeGameStatus {
 
     $reloadAt = if ($statusDocument -and $statusDocument.reload) { $statusDocument.reload.at } else { $null }
     $batchAt = if ($statusDocument -and $statusDocument.batch) { $statusDocument.batch.at } else { $null }
-    $reloadFresh = $false
-    if ($reloadAt) {
-        $reloadFresh = -not $batchAt -or ([DateTimeOffset]::Parse([string]$reloadAt) -ge [DateTimeOffset]::Parse([string]$batchAt))
-    }
-    $reloadAge = if ($reloadAt) {
-        [Math]::Max(0, [Math]::Round(([DateTimeOffset]::UtcNow - [DateTimeOffset]::Parse([string]$reloadAt)).TotalSeconds))
+    $reloadInstant = if ($reloadAt) { ConvertTo-ForgeDateTimeOffset $reloadAt } else { $null }
+    $batchInstant = if ($batchAt) { ConvertTo-ForgeDateTimeOffset $batchAt } else { $null }
+    $reloadFresh = [bool]$reloadInstant -and (-not $batchInstant -or $reloadInstant -ge $batchInstant)
+    $reloadAge = if ($reloadInstant) {
+        [Math]::Max(0, [Math]::Round(([DateTimeOffset]::UtcNow - $reloadInstant).TotalSeconds))
     } else { $null }
     $reload = [pscustomobject]@{
         at = $reloadAt

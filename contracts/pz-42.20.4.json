@@ -1,0 +1,60 @@
+﻿{
+    "schema":  1,
+    "game":  {
+                 "version":  "42.20.4",
+                 "steamBuild":  "24909800"
+             },
+    "umbrella":  {
+                     "revision":  "98f50ae698aab1dc7c44ba4fba87c33c800fee20"
+                 },
+    "files":  [
+                  {
+                      "path":  "media/lua/shared/TimedActions/ISBaseTimedAction.lua",
+                      "sha256":  "AD72E57F976BD1564D59D08D98D06F8C8D4ACEA6386AACE48E0D99CE9D02A1F0",
+                      "symbols":  {
+                                      "isValidStart":  true,
+                                      "complete":  false,
+                                      "perform":  true,
+                                      "forceCancel":  true
+                                  }
+                  },
+                  {
+                      "path":  "media/lua/client/TimedActions/ISTimedActionQueue.lua",
+                      "sha256":  "23C98152728172B44CCB41BC8DDC97798FEE7A91B57B20620FB11D5F41E7792C",
+                      "symbols":  {
+                                      "add":  true,
+                                      "onTick":  true,
+                                      "resetQueue":  true
+                                  }
+                  },
+                  {
+                      "path":  "media/lua/client/TimedActions/ISInventoryTransferAction.lua",
+                      "sha256":  "96EE554609F9AE029809643D50E4F31DBC5A7D21A558934BE0804FD909C345B4",
+                      "symbols":  {
+                                      "isValid":  true,
+                                      "start":  true,
+                                      "stop":  true,
+                                      "perform":  true,
+                                      "setOnComplete":  true
+                                  }
+                  },
+                  {
+                      "path":  "media/lua/client/TimedActions/ISGrabItemAction.lua",
+                      "sha256":  "09E0CF5DF8C9DF21381FEF6E3C3A88CB36D97264A7A1BDF9D460D37E2EFF8B0D",
+                      "symbols":  {
+                                      "isValid":  true,
+                                      "complete":  false,
+                                      "perform":  true
+                                  }
+                  },
+                  {
+                      "path":  "media/lua/shared/TimedActions/ISAddItemInRecipe.lua",
+                      "sha256":  "700D4C841B942F745ECE28211886383498A028B579D19C46EA3D467BA0CFEF2F",
+                      "symbols":  {
+                                      "isValidStart":  true,
+                                      "complete":  true,
+                                      "perform":  true
+                                  }
+                  }
+              ]
+}
