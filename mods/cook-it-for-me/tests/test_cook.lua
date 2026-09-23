@@ -156,12 +156,19 @@ eq(e.messages[#e.messages], "UI_CookItForMe_ItemMissing")
 eq(e.on, false, "missing dish shuts off owned stove")
 
 e = Env.new()
+eq(CookItForMe.getSettings(e.player).radius, 4, "new players start with a four-tile search radius")
+
+e = Env.new()
 local old = { strategy = "min", radius = 7, panelX = 12, custom = true }
 e.modData.CookItForMe = old
 eq(CookItForMe.getSettings(e.player), old)
 eq(old.radius, 7)
 eq(old.frozenPenalty, 0.5)
 eq(old.custom, true)
+
+e = Env.new()
+e.modData.CookItForMe = { strategy = "min" }
+eq(CookItForMe.getSettings(e.player).radius, 4, "missing radius gets the new default")
 
 -- Multiplayer must be rejected before planning, mutation, or action enqueueing.
 e = Env.new()

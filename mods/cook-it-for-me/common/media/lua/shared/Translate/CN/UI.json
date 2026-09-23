@@ -68,5 +68,12 @@
     "UI_CookItForMe_PlanCaloriesTotal": "总热量：约 %1",
     "UI_CookItForMe_PlanHunger": "饱腹度：约 %1",
     "UI_CookItForMe_PlanFrozenTag": "[冷冻]",
-    "UI_CookItForMe_PlanFrozenLine": "冷冻食材：%1 - 烹饪时间 x%2"
+    "UI_CookItForMe_PlanFrozenLine": "冷冻食材：%1 - 烹饪时间 x%2",
+    "UI_CookItForMe_ModOptions": "替我做饭",
+    "UI_CookItForMe_KeybindName": "Cook It For Me：打开烹饪计划",
+    "UI_CookItForMe_KeybindLabel": "计划快捷键",
+    "UI_CookItForMe_KeybindTooltip": "此按键用于打开烹饪计划。点击可更换按键；按 Esc 取消选择。",
+    "UI_CookItForMe_KeybindCapture": "请按一个键（Esc 取消）",
+    "UI_CookItForMe_KeybindConflict": "%1 已分配给：%2。仍要保留两个操作吗？",
+    "UI_CookItForMe_KeybindKeepBoth": "保留两个"
 }

@@ -110,7 +110,7 @@
       "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
       "code": "undefined-field",
       "message": "Undefined field `rebuild`. ",
-        "count": 6,
+      "count": 6,
       "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
     },
     {
@@ -152,7 +152,7 @@
       "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
       "code": "undefined-field",
       "message": "Undefined field `player`. ",
-        "count": 10,
+      "count": 10,
       "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
     },
     {
@@ -236,7 +236,7 @@
       "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
       "code": "unnecessary-if",
       "message": "Impossible `if` statement: this condition is always falsy",
-      "count": 1,
+      "count": 2,
       "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
     },
     {
@@ -439,7 +439,7 @@
       "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
       "code": "unnecessary-if",
       "message": "Unnecessary `if` statement: this condition is always truthy",
-      "count": 5,
+      "count": 6,
       "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
     },
     {
@@ -635,8 +635,8 @@
       "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
       "code": "unnecessary-if",
       "message": "Impossible `if` statement: this condition is always falsy",
-      "count": 1,
-      "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+      "count": 5,
+      "explanation": "Event registration guards survive Forge Live reload, and planWindow is set dynamically by the UI constructor during gameplay."
     },
     {
       "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
@@ -796,7 +796,7 @@
       "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
       "code": "undefined-field",
       "message": "Undefined field `addChild`. ",
-        "count": 15,
+      "count": 16,
       "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
     },
     {
@@ -938,6 +938,188 @@
       "message": "Unnecessary `if` statement: this condition is always truthy",
       "count": 1,
       "explanation": "Existing production diagnostic is deferred to avoid behavior changes during the reliability-tooling rollout."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "param-type-mismatch",
+      "message": "expected `integer` but found `number`. ",
+      "count": 1,
+      "explanation": "The vanilla ISButton constructor accepts computed Lua coordinates despite its integer annotation."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISButton` for `isModBind`. ",
+      "count": 1,
+      "explanation": "Vanilla MainOptions sets isModBind on its keybind buttons for the stock capture dialog."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "assign-type-mismatch",
+      "message": "Cannot assign `{ txt = ISLabel, btn = ISButton, keyCode = number, defaultKeyCode = integer, ... }` to `(umbrella.ModOptions.Keybind.Element|ISTextEntryBox|ISTickBox|ISComboBox|umbrella.ModOptions.ColorPicker.Element|ISSliderPanel...)?`. ",
+      "count": 1,
+      "explanation": "Vanilla MainOptions assigns a Lua keybind row to Mod Options option.element, which is missing from the external type union."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "need-check-nil",
+      "message": "function CookItForMe.planKeyOption:getValue may be nil",
+      "count": 1,
+      "explanation": "PZAPI Mod Options methods and the PlanUI event bridge are dynamically typed; Build 42.20.4 contracts were verified against installed vanilla Lua."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "need-check-nil",
+      "message": "function CookItForMe.planKeyOption:setValue may be nil",
+      "count": 1,
+      "explanation": "PZAPI Mod Options methods and the PlanUI event bridge are dynamically typed; Build 42.20.4 contracts were verified against installed vanilla Lua."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_Client.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onPlanKeyCapturePressed`. ",
+      "count": 1,
+      "explanation": "PZAPI Mod Options methods and the PlanUI event bridge are dynamically typed; Build 42.20.4 contracts were verified against installed vanilla Lua."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `keybindButton`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `keyConflictCover`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "inject-field",
+      "message": "Fields cannot be injected into the reference of `ISBaseObject` for `keyConflictDialog`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "need-check-nil",
+      "message": "function option:getValue may be nil",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "need-check-nil",
+      "message": "modal.no may be nil",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "need-check-nil",
+      "message": "modal.yes may be nil",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "param-type-mismatch",
+      "message": "expected `integer` but found `number`. ",
+      "count": 2,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "param-type-mismatch",
+      "message": "expected `string` but found `string?`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `alt`. ",
+      "count": 2,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `ctrl`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `isCapturingPlanKey`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `keybindButton`. ",
+      "count": 12,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `keyCaptureActive`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `keyConflictCover`. ",
+      "count": 2,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `keyConflictDialog`. ",
+      "count": 3,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `keyValue`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `name`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onPlanKeyButton`. ",
+      "count": 2,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `onPlanKeyCapturePressed`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
+    },
+    {
+      "file": "mods/cook-it-for-me/42/media/lua/client/CookItForMe_PlanUI.lua",
+      "code": "undefined-field",
+      "message": "Undefined field `shift`. ",
+      "count": 1,
+      "explanation": "Build 42.20.4 Java key binding methods and ISUI fields are dynamic at runtime; contracts were verified against installed vanilla Lua. EmmyLua cannot infer fields added by ISBaseObject constructors."
     }
   ]
 }

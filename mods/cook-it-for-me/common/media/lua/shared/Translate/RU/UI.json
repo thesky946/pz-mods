@@ -68,5 +68,12 @@
     "UI_CookItForMe_PlanCaloriesTotal": "Калорийность: ~%1 ккал",
     "UI_CookItForMe_PlanHunger": "Утолит голод: ~%1",
     "UI_CookItForMe_PlanFrozenTag": "[заморожено]",
-    "UI_CookItForMe_PlanFrozenLine": "Заморожено: %1 — время готовки ×%2"
+    "UI_CookItForMe_PlanFrozenLine": "Заморожено: %1 — время готовки ×%2",
+    "UI_CookItForMe_ModOptions": "Готовь за меня",
+    "UI_CookItForMe_KeybindName": "Cook It For Me: открыть план готовки",
+    "UI_CookItForMe_KeybindLabel": "Клавиша плана",
+    "UI_CookItForMe_KeybindTooltip": "Эта клавиша открывает план готовки. Нажмите, чтобы назначить другую; Esc отменяет выбор.",
+    "UI_CookItForMe_KeybindCapture": "Нажмите клавишу (Esc — отмена)",
+    "UI_CookItForMe_KeybindConflict": "Клавиша %1 уже назначена: %2. Оставить обе команды?",
+    "UI_CookItForMe_KeybindKeepBoth": "Оставить обе"
 }

@@ -118,12 +118,25 @@ function Get-ForgeGameStatus {
     $consoleTruncated = $false
     $bytesRead = 0
     $newText = ''
+    $consoleReadError = $null
     if ($consoleExists) {
-        $bytes = [IO.File]::ReadAllBytes($ConsolePath)
-        $start = $capturedOffset
-        if ($bytes.Length -lt $start) { $start = 0; $consoleTruncated = $true }
-        $bytesRead = $bytes.Length - $start
-        if ($bytesRead -gt 0) { $newText = [Text.Encoding]::UTF8.GetString($bytes, [int]$start, [int]$bytesRead) }
+        try {
+            $stream = [IO.File]::Open($ConsolePath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+            try {
+                $memory = [IO.MemoryStream]::new()
+                try {
+                    $stream.CopyTo($memory)
+                    $bytes = $memory.ToArray()
+                } finally { $memory.Dispose() }
+            } finally { $stream.Dispose() }
+
+            $start = $capturedOffset
+            if ($bytes.Length -lt $start) { $start = 0; $consoleTruncated = $true }
+            $bytesRead = $bytes.Length - $start
+            if ($bytesRead -gt 0) { $newText = [Text.Encoding]::UTF8.GetString($bytes, [int]$start, [int]$bytesRead) }
+        } catch {
+            $consoleReadError = $_.Exception.Message
+        }
     }
 
     $tokens = @([string]$ModInfo.Id, [string]$ModInfo.Root, [string]$entry.src) + @($entry.targets | ForEach-Object { [string]$_ })
@@ -145,7 +158,7 @@ function Get-ForgeGameStatus {
         reason = if ($statusDocument) { $statusDocument.reason } elseif ($watcherState -eq 'stale') { 'missing status and stale watcher lock' } else { $statusError }
     }
     $healthyWatcher = @('ready', 'reloading') -contains $watcherState
-    $ok = $gameRunning -and $healthyWatcher -and $bridge.ok -and $relevant.Count -eq 0
+    $ok = $gameRunning -and $healthyWatcher -and $bridge.ok -and $relevant.Count -eq 0 -and -not $consoleReadError
     return [pscustomobject]@{
         ok = $ok
         game = [pscustomobject]@{ running = $gameRunning; process = 'ProjectZomboid64' }
@@ -155,6 +168,7 @@ function Get-ForgeGameStatus {
         console = [pscustomobject]@{
             path = $ConsolePath; exists = $consoleExists; offset = $capturedOffset
             bytesRead = $bytesRead; truncated = $consoleTruncated
+            readError = $consoleReadError
         }
         errors = [pscustomobject]@{ relevant = $relevant.ToArray(); other = $other.ToArray() }
     }

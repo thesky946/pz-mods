@@ -9,6 +9,7 @@ require "ISUI/ISComboBox"
 require "ISUI/ISSpinBox"
 require "ISUI/ISTickBox"
 require "ISUI/ISPanel"
+require "ISUI/ISModalDialog"
 -- NeatUI is a hard dependency.  Keep these requires explicit: the framework's
 -- widgets are not guaranteed to be loaded just because another Neat mod is.
 require "neatui_framework/scrollview/niscrollbar"
@@ -27,6 +28,7 @@ local COL1 = 16
 local COL2 = 320
 local BASE_FONT_HEIGHT = 18
 local UI_SCALE = setmetatable({}, { __mode = "k" })
+local KEY_CAPTURE_PANEL
 
 local function uiPixel(panel, value)
     return math.floor(value * (UI_SCALE[panel] or 1) + 0.5)
@@ -216,6 +218,15 @@ local function buildRenderLines(entries, activeIndex)
 end
 
 function CookItForMePlanUI:close()
+    if KEY_CAPTURE_PANEL == self then KEY_CAPTURE_PANEL = nil end
+    if self.keyConflictDialog then
+        self.keyConflictDialog:destroy()
+        self.keyConflictDialog = nil
+    end
+    if self.keyConflictCover then
+        self.keyConflictCover:setVisible(false)
+        self.keyConflictCover = nil
+    end
     if CookItForMe.planWindow == self then CookItForMe.planWindow = nil end
     local p = getSpecificPlayer(self.player)
     if p then
@@ -309,6 +320,132 @@ end
 
 function CookItForMePlanUI.onCompletionSoundChange(panel, index, selected)
     CookItForMe.saveSettings(getSpecificPlayer(panel.player), { completionSound = selected })
+end
+
+local function addKeyConflict(conflicts, seen, name)
+    if name and name ~= "" and not seen[name] then
+        seen[name] = true
+        conflicts[#conflicts + 1] = name
+    end
+end
+
+local function getPlanKeyConflicts(key)
+    local conflicts, seen = {}, {}
+
+    -- Core:getKeyBinding() returns Java KeyBinding userdata whose methods are
+    -- not exposed to Kahlua in Build 42.20.4. MainOptions holds the Lua rows.
+    if MainOptions and MainOptions.keyText and #MainOptions.keyText > 0 then
+        for _, binding in ipairs(MainOptions.keyText) do
+            if not binding.isModBind and tonumber(binding.keyCode) == key
+                and not binding.shift and not binding.ctrl and not binding.alt
+                and binding.txt and binding.txt.getName then
+                addKeyConflict(conflicts, seen, binding.txt:getName())
+            end
+        end
+    elseif MainOptions and MainOptions.keys then
+        for _, binding in ipairs(MainOptions.keys) do
+            if tonumber(binding.key) == key and not binding.shift and not binding.ctrl and not binding.alt then
+                addKeyConflict(conflicts, seen, getText("UI_optionscreen_binding_" .. binding.value))
+            end
+        end
+    end
+
+    for _, options in ipairs(PZAPI.ModOptions.Data) do
+        for _, option in ipairs(options.data) do
+            if option.type == "keybind" and option ~= CookItForMe.planKeyOption
+                and tonumber(option:getValue()) == key then
+                addKeyConflict(conflicts, seen, getText(option.name))
+            end
+        end
+    end
+
+    return conflicts
+end
+
+local function updatePlanKeyButton(panel)
+    if not panel.keybindButton then return end
+    panel.keybindButton.fullTitle = panel.keyCaptureActive and "..." or getKeyName(CookItForMe.getOpenPlanKey())
+    panel.keybindButton.title = ""
+    panel.keybindButton.tooltip = getText(panel.keyCaptureActive
+        and "UI_CookItForMe_KeybindCapture" or "UI_CookItForMe_KeybindTooltip")
+end
+
+local function finishPlanKeyCapture(panel)
+    if KEY_CAPTURE_PANEL == panel then KEY_CAPTURE_PANEL = nil end
+    panel.keyCaptureActive = false
+    updatePlanKeyButton(panel)
+end
+
+local function onPlanKeyConflictChoice(panel, button, key)
+    if button.internal == "YES" and CookItForMe.planWindow == panel then
+        CookItForMe.setOpenPlanKey(key)
+    end
+    panel.keyConflictDialog = nil
+    if panel.keyConflictCover then
+        panel.keyConflictCover:setVisible(false)
+        panel.keyConflictCover = nil
+    end
+    updatePlanKeyButton(panel)
+end
+
+local function showPlanKeyConflict(panel, key, conflicts)
+    local message = getText("UI_CookItForMe_KeybindConflict", getKeyName(key), table.concat(conflicts, ", "))
+    local width, height = ISModalDialog.CalcSize(480, 140, message)
+    local cover = ISPanel:new(0, 0, panel.width, panel.height)
+    cover.anchorRight = true
+    cover.anchorBottom = true
+    cover.backgroundColor.a = 0
+    cover.borderColor.a = 0
+    cover:initialise(); cover:instantiate()
+    cover.javaObject:setConsumeMouseEvents(true)
+    panel:addChild(cover)
+    panel.keyConflictCover = cover
+    local modal = ISModalDialog:new((getCore():getScreenWidth() - width) / 2,
+        (getCore():getScreenHeight() - height) / 2, width, height, message, true, panel,
+        onPlanKeyConflictChoice, nil, key)
+    modal:initialise()
+    modal.yes:setTitle(getText("UI_CookItForMe_KeybindKeepBoth"))
+    modal.no:setTitle(getText("UI_Cancel"))
+    modal:addToUIManager()
+    modal:setAlwaysOnTop(true)
+    panel.keyConflictDialog = modal
+end
+
+function CookItForMePlanUI.isCapturingPlanKey()
+    return KEY_CAPTURE_PANEL ~= nil
+end
+
+function CookItForMePlanUI.onPlanKeyButton(panel)
+    if KEY_CAPTURE_PANEL then return end
+    KEY_CAPTURE_PANEL = panel
+    panel.keyCaptureActive = true
+    updatePlanKeyButton(panel)
+end
+
+function CookItForMePlanUI.onPlanKeyCapturePressed(key)
+    local panel = KEY_CAPTURE_PANEL
+    if not panel then return false end
+
+    if key == Keyboard.KEY_ESCAPE then
+        finishPlanKeyCapture(panel)
+        return true
+    end
+
+    if key == Keyboard.KEY_LSHIFT or key == Keyboard.KEY_RSHIFT
+        or key == Keyboard.KEY_LCONTROL or key == Keyboard.KEY_RCONTROL
+        or key == Keyboard.KEY_LMENU or key == Keyboard.KEY_RMENU then
+        return true
+    end
+
+    finishPlanKeyCapture(panel)
+    local conflicts = getPlanKeyConflicts(key)
+    if #conflicts > 0 then
+        showPlanKeyConflict(panel, key, conflicts)
+    else
+        CookItForMe.setOpenPlanKey(key)
+        updatePlanKeyButton(panel)
+    end
+    return true
 end
 
 function CookItForMePlanUI:onCook()
@@ -427,6 +564,13 @@ function CookItForMePlanUI:createChildren()
     self.finishCookingButton:initialise(); self.finishCookingButton:instantiate()
     styleButton(self.finishCookingButton, settings.finishCooking and GOOD or MUTED)
     self:addChild(self.finishCookingButton)
+    self.keybindButton = ISButton:new(0, 0, px(120), px(24), "", self, CookItForMePlanUI.onPlanKeyButton)
+    self.keybindButton.fullTitle = getKeyName(CookItForMe.getOpenPlanKey())
+    self.keybindButton.title = ""
+    self.keybindButton.tooltip = getText("UI_CookItForMe_KeybindTooltip")
+    self.keybindButton:initialise(); self.keybindButton:instantiate()
+    styleButton(self.keybindButton, ACCENT)
+    self:addChild(self.keybindButton)
     y = y + px(32)
     -- The preview is a NeatUI smooth scroll view.  The old ISPanel scrollbar
     -- made the plan feel like a debug dump and fought the mouse wheel.
@@ -579,7 +723,7 @@ function CookItForMePlanUI:prerender()
     -- A Lua reload replaces this method but cannot add children to an already
     -- open legacy window.  Let it finish its frame quietly; reopening creates
     -- the new dashboard instead of producing an error every frame.
-    if not self.strategyButtons or not self.radiusButtons or not self.soundButton then return end
+    if not self.strategyButtons or not self.radiusButtons or not self.soundButton or not self.keybindButton then return end
     local px = function(value) return uiPixel(self, value) end
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/MainPanelBG_FlatTop.png", 0, self:titleBarHeight(), self.width,
         self.height - self:titleBarHeight(), .96, .08, .08, .08)
@@ -620,7 +764,13 @@ function CookItForMePlanUI:prerender()
     local settingsH = compactHeight and px(148) or px(160)
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/ContentPanel_BG.png", mainX, settingsY, mainW, settingsH,
         .78, .08, .08, .08)
-    self:drawText(truncateText(getText("UI_CookItForMe_Settings"), mainW - px(24), UIFont.Small), mainX + px(12), settingsY + px(8),
+    local keybindWidth = px(120)
+    self.keybindButton:setX(mainX + mainW - keybindWidth - px(12))
+    self.keybindButton:setY(settingsY + px(4))
+    self.keybindButton:setWidth(keybindWidth)
+    self.keybindButton:setHeight(px(24))
+    if not self.keyCaptureActive and not self.keyConflictDialog then updatePlanKeyButton(self) end
+    self:drawText(truncateText(getText("UI_CookItForMe_Settings"), math.max(px(20), mainW - keybindWidth - px(40)), UIFont.Small), mainX + px(12), settingsY + px(8),
         MUTED.r, MUTED.g, MUTED.b, 1, UIFont.Small)
     self.strategyCombo:setVisible(false)
     -- A label needs more than the nominal font height in PZ: its shadow and

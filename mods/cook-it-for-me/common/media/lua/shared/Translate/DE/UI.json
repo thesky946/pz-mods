@@ -68,5 +68,12 @@
     "UI_CookItForMe_PlanCaloriesTotal": "Kalorien insgesamt: ~%1",
     "UI_CookItForMe_PlanHunger": "Stillt Hunger: ~%1",
     "UI_CookItForMe_PlanFrozenTag": "[gefroren]",
-    "UI_CookItForMe_PlanFrozenLine": "Gefroren: %1 - Kochzeit x%2"
+    "UI_CookItForMe_PlanFrozenLine": "Gefroren: %1 - Kochzeit x%2",
+    "UI_CookItForMe_ModOptions": "Cook It For Me",
+    "UI_CookItForMe_KeybindName": "Cook It For Me: Kochplan öffnen",
+    "UI_CookItForMe_KeybindLabel": "Plantaste",
+    "UI_CookItForMe_KeybindTooltip": "Diese Taste öffnet den Kochplan. Klicken, um sie zu ändern; Esc bricht die Auswahl ab.",
+    "UI_CookItForMe_KeybindCapture": "Taste drücken (Esc bricht ab)",
+    "UI_CookItForMe_KeybindConflict": "%1 ist bereits zugewiesen an: %2. Beide Zuweisungen behalten?",
+    "UI_CookItForMe_KeybindKeepBoth": "Beide behalten"
 }

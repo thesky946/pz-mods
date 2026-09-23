@@ -76,9 +76,10 @@ tools/build_workshop.ps1    сборка структуры для ручной 
 ## Состояние и события
 
 - Настройки игрока: `player:getModData().CookItForMe`; `finishCooking` по умолчанию включён и сохраняется между открытиями окна.
-- Значения по умолчанию: `strategy=max`, `radius=1`, `frozenPenalty=0.5`; также хранятся позиция и размер окна.
+- Значения по умолчанию: `strategy=max`, `radius=4`, `frozenPenalty=0.5`; также хранятся позиция и размер окна.
 - Sandbox: `CookItForMe.Debug` включает подробный вывод в `console.txt`; `debugFast` существует как скрытая отладочная настройка в ModData.
-- События: `OnGameBoot`, `OnFillWorldObjectContextMenu`, `OnTick`.
+- События: `OnGameBoot`, `OnFillWorldObjectContextMenu`, `OnKeyPressed`, `OnTick`.
+- Клавиша открытия плана хранится как `PZAPI.ModOptions` keybind `CookItForMe.OpenPlan`; не переносить её в ModData или Core key bindings.
 - `Cook.getSession()` возвращает текущую SP-сессию. Runtime-состояние принадлежит ей; тик использует её игрока. Мод по-прежнему поддерживает только один активный процесс. Не объявлять его мультиплеерным без сетевой синхронизации и проверки серверного исполнения.
 
 ## Разработка

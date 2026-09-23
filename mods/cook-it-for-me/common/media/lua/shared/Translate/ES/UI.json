@@ -68,5 +68,12 @@
     "UI_CookItForMe_PlanCaloriesTotal": "Calorías totales: ~%1",
     "UI_CookItForMe_PlanHunger": "Saciedad: ~%1",
     "UI_CookItForMe_PlanFrozenTag": "[congelado]",
-    "UI_CookItForMe_PlanFrozenLine": "Congelados: %1 - tiempo de cocción x%2"
+    "UI_CookItForMe_PlanFrozenLine": "Congelados: %1 - tiempo de cocción x%2",
+    "UI_CookItForMe_ModOptions": "Cook It For Me",
+    "UI_CookItForMe_KeybindName": "Cook It For Me: abrir el plan de cocina",
+    "UI_CookItForMe_KeybindLabel": "Tecla del plan",
+    "UI_CookItForMe_KeybindTooltip": "Esta tecla abre el plan de cocina. Haz clic para cambiarla; Esc cancela la selección.",
+    "UI_CookItForMe_KeybindCapture": "Pulsa una tecla (Esc cancela)",
+    "UI_CookItForMe_KeybindConflict": "%1 ya está asignada a: %2. ¿Mantener ambas asignaciones?",
+    "UI_CookItForMe_KeybindKeepBoth": "Mantener ambas"
 }

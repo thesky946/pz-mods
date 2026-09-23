@@ -82,6 +82,25 @@ Invoke-Test 'reports ready watcher and never mutates bridge files' {
     } finally { Remove-Item -LiteralPath $f.Root -Recurse -Force }
 }
 
+Invoke-Test 'keeps game process status when the console log is locked' {
+    $f = New-ForgeStatusFixture
+    $lock = $null
+    try {
+        $lock = [IO.File]::Open($f.Console, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        $status = Get-ForgeGameStatus -ModInfo $f.Mod -ForgeConfigPath $f.Config -ConsolePath $f.Console -ProcessLookup {
+            param($WatcherPid, $Kind)
+            if ($Kind -eq 'game') { return $true }
+            return $WatcherPid -eq 123
+        }
+        Assert-True $status.game.running 'A console read failure must not claim the game process is stopped.'
+        Assert-True (-not [string]::IsNullOrWhiteSpace($status.console.readError)) 'The unreadable console must be reported.'
+        Assert-True (-not $status.ok) 'Status cannot be healthy when the console could not be checked.'
+    } finally {
+        if ($null -ne $lock) { $lock.Dispose() }
+        Remove-Item -LiteralPath $f.Root -Recurse -Force
+    }
+}
+
 Invoke-Test 'reports blocked, restart-required, stale, missing, and invalid status' {
     foreach ($case in @(
         @{ Stored = 'blocked'; Expected = 'blocked'; Running = $true },

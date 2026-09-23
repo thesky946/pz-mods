@@ -68,5 +68,12 @@
     "UI_CookItForMe_PlanCaloriesTotal": "Toplam kalori: ~%1",
     "UI_CookItForMe_PlanHunger": "Tokluk: ~%1",
     "UI_CookItForMe_PlanFrozenTag": "[donmuş]",
-    "UI_CookItForMe_PlanFrozenLine": "Donmuş malzeme: %1 - pişirme süresi x%2"
+    "UI_CookItForMe_PlanFrozenLine": "Donmuş malzeme: %1 - pişirme süresi x%2",
+    "UI_CookItForMe_ModOptions": "Cook It For Me",
+    "UI_CookItForMe_KeybindName": "Cook It For Me: yemek planını aç",
+    "UI_CookItForMe_KeybindLabel": "Plan tuşu",
+    "UI_CookItForMe_KeybindTooltip": "Bu tuş yemek planını açar. Değiştirmek için tıklayın; Esc seçimi iptal eder.",
+    "UI_CookItForMe_KeybindCapture": "Bir tuşa basın (Esc iptal eder)",
+    "UI_CookItForMe_KeybindConflict": "%1 zaten şuna atanmış: %2. İki atama da korunsun mu?",
+    "UI_CookItForMe_KeybindKeepBoth": "İkisini de koru"
 }

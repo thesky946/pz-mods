@@ -1,13 +1,33 @@
 package.path = "../42/media/lua/shared/?.lua;../42/media/lua/client/?.lua;./?.lua;" .. package.path
 local Env = require "support/cook_env"
 local e = Env.new()
+package.loaded.CookItForMe_PlanUI = nil
+CookItForMePlanUI = nil
+
+local KEY_F8, KEY_ESCAPE, KEY_K, KEY_LSHIFT = 66, 1, 37, 42
+Keyboard = {
+    KEY_F8 = KEY_F8, KEY_ESCAPE = KEY_ESCAPE, KEY_K = KEY_K,
+    KEY_LSHIFT = KEY_LSHIFT, KEY_RSHIFT = 54, KEY_LCONTROL = 29, KEY_RCONTROL = 157,
+    KEY_LMENU = 56, KEY_RMENU = 184,
+}
+getKeyName = function(key) return key == KEY_F8 and "F8" or (key == KEY_K and "K" or "Unknown") end
+getText = function(key, ...)
+    if select("#", ...) > 0 then return key .. ":" .. table.concat({ ... }, ",") end
+    return key
+end
+local activePlanKey, savedPlanKey = KEY_F8, nil
+CookItForMe.getOpenPlanKey = function() return activePlanKey end
+CookItForMe.setOpenPlanKey = function(key) activePlanKey, savedPlanKey = key, key; return true end
+MainOptions = { keyText = {}, keys = {} }
+PZAPI = { ModOptions = { Data = {} } }
 local screenW, screenH, fontHeight = 900, 700, 18
 local Base = {}
 Base.__index = Base
 function Base:derive() local c = {}; c.__index = c; return setmetatable(c, { __index = self }) end
 function Base:new(x, y, w, h, text, target, callback)
     return setmetatable({ x = x, y = y, width = w, height = h, children = {}, options = {},
-        text = text, target = target, callback = callback, anchorTop = true }, self)
+        text = text, target = target, callback = callback, anchorTop = true,
+        backgroundColor = { a = 1 }, borderColor = { a = 1 } }, self)
 end
 for _, name in ipairs({ "initialise", "instantiate", "setResizable", "enableAcceptColor", "enableCancelColor",
     "setVisible", "removeFromUIManager", "addScrollBars", "setStencilRect", "clearStencilRect", "drawRect", "drawRectBorder", "drawTextureScaled", "prerender", "createChildren" }) do
@@ -16,6 +36,7 @@ end
 function Base:addChild(child) self.children[#self.children + 1] = child end
 function Base:instantiate()
     self.engineAnchorTop, self.engineAnchorBottom = self.anchorTop, self.anchorBottom
+    self.javaObject = { setConsumeMouseEvents = function(javaObject, value) javaObject.consumesMouseEvents = value end }
 end
 function Base:addToUIManager() self:createChildren() end
 function Base:titleBarHeight() return math.max(16, fontHeight + 1) end
@@ -47,6 +68,24 @@ for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBo
     _G[name] = Base:derive()
     package.loaded["ISUI/" .. name] = true
 end
+ISModalDialog = {}
+function ISModalDialog.CalcSize(width, height) return width, height end
+function ISModalDialog:new(x, y, width, height, text, yesno, target, onclick, player, param1, param2)
+    local modal = { x = x, y = y, width = width, height = height, text = text, target = target,
+        onclick = onclick, param1 = param1, param2 = param2 }
+    function modal:initialise()
+        self.yes = { internal = "YES", setTitle = function(button, title) button.title = title end }
+        self.no = { internal = "NO", setTitle = function(button, title) button.title = title end }
+    end
+    function modal:addToUIManager() end
+    function modal:setAlwaysOnTop() end
+    function modal:destroy() self.destroyed = true end
+    function modal:choose(internal)
+        self.onclick(self.target, internal == "YES" and self.yes or self.no, self.param1, self.param2)
+    end
+    return modal
+end
+package.loaded["ISUI/ISModalDialog"] = true
 -- ISButton does not expose ISPanel:drawText in the game.  Custom button
 -- renderers must use its supported centred text API.
 ISButton.drawText = false
@@ -55,7 +94,11 @@ package.loaded["neatui_framework/scrollview/niscrollview"] = Base:derive()
 package.loaded["neatui_framework/neattool/neattool_truncatetext"] = true
 UIFont = { Small = 1 }
 getSpecificPlayer = function() return e.player end
-getCore = function() return { getScreenWidth = function() return screenW end, getScreenHeight = function() return screenH end } end
+getCore = function() return {
+    getScreenWidth = function() return screenW end,
+    getScreenHeight = function() return screenH end,
+    getKeyBinding = function() error("Core.KeyBinding is not accessible to Lua in Build 42.20.4") end,
+} end
 getTextManager = function() return { MeasureStringX = function(_, _, text) return #text * fontHeight / 3 end, getFontHeight = function() return fontHeight end } end
 local settings = CookItForMe.getSettings(e.player)
 assert(settings.finishCooking, "legacy settings enable finishing the dish by default")
@@ -68,6 +111,9 @@ local panel = CookItForMePlanUI:new(0, entries, 2)
 panel:prerender()
 assert(panel.width == 2080 and panel.height == 1280,
     "a fresh window scales with the effective PZ font size")
+assert(panel.keybindButton.fullTitle == "F8"
+    and panel.keybindButton.tooltip == "UI_CookItForMe_KeybindTooltip",
+    "the plan UI displays the current Controls assignment")
 assert(panel.cookButton.height == 60 and panel.tabButtons[1].height == 96,
     "fresh dashboard controls scale with the effective PZ font size")
 assert(panel.x >= 0 and panel.y >= 0 and panel.x + panel.width <= screenW and panel.y + panel.height <= screenH)
@@ -85,6 +131,60 @@ assert(panel.soundButton.x < panel.finishCookingButton.x
     "completion-sound and finish-cooking settings have equal half-widths")
 assert(panel.content.y > panel.finishCookingButton.y + panel.finishCookingButton.height,
     "plan contents begin below the finish-cooking setting")
+
+CookItForMePlanUI.onPlanKeyButton(panel)
+assert(CookItForMePlanUI.isCapturingPlanKey(), "clicking the displayed key starts capture")
+assert(panel.keybindButton.fullTitle == "..."
+    and panel.keybindButton.tooltip == "UI_CookItForMe_KeybindCapture",
+    "capture keeps the button compact and explains how to cancel")
+CookItForMePlanUI.onPlanKeyCapturePressed(KEY_LSHIFT)
+assert(CookItForMePlanUI.isCapturingPlanKey() and activePlanKey == KEY_F8,
+    "modifier keys are ignored during capture")
+CookItForMePlanUI.onPlanKeyCapturePressed(KEY_ESCAPE)
+assert(not CookItForMePlanUI.isCapturingPlanKey() and activePlanKey == KEY_F8 and savedPlanKey == nil,
+    "Escape cancels capture without changing or saving the assignment")
+
+CookItForMePlanUI.onPlanKeyButton(panel)
+CookItForMePlanUI.onPlanKeyCapturePressed(KEY_K)
+assert(activePlanKey == KEY_K and savedPlanKey == KEY_K,
+    "a free key immediately updates and saves the shared binding")
+
+activePlanKey = KEY_F8 -- simulate a Controls change while this window is open
+panel:prerender()
+assert(panel.keybindButton.fullTitle == "F8",
+    "the plan UI refreshes its key label from the shared option")
+
+MainOptions.keyText = { {
+    keyCode = KEY_F8, shift = false, ctrl = false, alt = false,
+    txt = { getName = function() return "Vanilla F8 action" end },
+} }
+MainOptions.keys = { { key = KEY_F8, value = "VanillaF8Action", shift = false, ctrl = false, alt = false } }
+local otherModKey = { type = "keybind", name = "UI_Test_OtherModKey", getValue = function() return KEY_F8 end }
+PZAPI.ModOptions.Data = { { data = { otherModKey } } }
+activePlanKey = KEY_K
+local savesBeforeConflict = savedPlanKey
+CookItForMePlanUI.onPlanKeyButton(panel)
+CookItForMePlanUI.onPlanKeyCapturePressed(KEY_F8)
+local keyConflictDialog = panel.keyConflictDialog
+assert(keyConflictDialog and activePlanKey == KEY_K and savedPlanKey == savesBeforeConflict,
+    "a conflicting candidate waits for the player's choice before saving")
+assert(panel.keyConflictCover and panel.keyConflictCover.javaObject.consumesMouseEvents,
+    "the conflict warning blocks clicks on the plan behind it")
+assert(type(keyConflictDialog.text) == "string", "dialog body is text: " .. tostring(keyConflictDialog.text))
+assert(keyConflictDialog.text:find("Vanilla F8 action", 1, true)
+    and keyConflictDialog.text:find("UI_Test_OtherModKey", 1, true),
+    "the custom warning identifies vanilla and other-mod assignments")
+assert(keyConflictDialog.yes.title == "UI_CookItForMe_KeybindKeepBoth"
+    and keyConflictDialog.no.title == "UI_Cancel", "the warning offers Keep both and Cancel")
+keyConflictDialog:choose("NO")
+assert(activePlanKey == KEY_K and savedPlanKey == savesBeforeConflict,
+    "canceling a key conflict preserves the old assignment")
+
+CookItForMePlanUI.onPlanKeyButton(panel)
+CookItForMePlanUI.onPlanKeyCapturePressed(KEY_F8)
+panel.keyConflictDialog:choose("YES")
+assert(activePlanKey == KEY_F8 and savedPlanKey == KEY_F8,
+    "choosing Keep both commits and saves the conflicting key")
 CookItForMePlanUI.onFinishCookingButton({ player = 0, rebuild = function() end })
 assert(not settings.finishCooking, "finish-cooking choice is persisted")
 assert(panel.dishRail and panel.summaryCard and panel.content.isNeatScrollView,
@@ -152,6 +252,13 @@ panel = CookItForMePlanUI:new(0, entries, 2)
 assert(CookItForMe.planWindow == panel and panel ~= previous)
 panel:prerender()
 assert(panel.cookButton.enabled == false and panel.cancelButton == nil)
+local canceledCooking = false
+local originalCancel = CookItForMe.Cook.cancel
+CookItForMe.Cook.cancel = function() canceledCooking = true end
+panel:close()
+CookItForMe.Cook.cancel = originalCancel
+assert(CookItForMe.planWindow == nil and not canceledCooking,
+    "closing the plan clears the window without cancelling an active cooking session")
 local staleWindow = setmetatable({ isCollapsed = false }, CookItForMePlanUI)
 assert(pcall(function() staleWindow:prerender() end), "hot-reloaded renderer must tolerate an old open window")
 for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBox", "ISSpinBox", "ISTickBox", "ISPanel" }) do package.loaded["ISUI/" .. name] = nil end
