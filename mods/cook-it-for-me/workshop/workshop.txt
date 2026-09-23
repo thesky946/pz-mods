@@ -1,5 +1,5 @@
 version=1
-title=Cook It For Me - Auto Cooking & Nutrition
+title=Cook It For Me - Auto Cooking
 description=[h2]Pick a meal. Your survivor does the cooking.[/h2]
 description=
 description=[b]One click. A real cooked meal.[/b]
@@ -76,6 +76,6 @@ description=
 description=[url=https://github.com/thesky946/pz-mods/tree/main/mods/cook-it-for-me][b]Исходный код[/b][/url] • [url=https://github.com/thesky946/pz-mods/issues][b]Сообщить об ошибке[/b][/url]
 description=
 description=[h3]Copyright 2026 thesky. This item is not authorized for posting on Steam, except under the Steam account named thesky.[/h3]
-tags=Build 42;QoL;Misc
+tags=Build 42;QoL;Food;Interface;Misc
 visibility=public
 id=3801601464
