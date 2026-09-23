@@ -27,7 +27,7 @@ function Base:derive() local c = {}; c.__index = c; return setmetatable(c, { __i
 function Base:new(x, y, w, h, text, target, callback)
     return setmetatable({ x = x, y = y, width = w, height = h, children = {}, options = {},
         text = text, target = target, callback = callback, anchorTop = true,
-        backgroundColor = { a = 1 }, borderColor = { a = 1 } }, self)
+        backgroundColor = { a = 1 }, borderColor = { a = 1 }, enable = true }, self)
 end
 for _, name in ipairs({ "initialise", "instantiate", "setResizable", "enableAcceptColor", "enableCancelColor",
     "setVisible", "removeFromUIManager", "addScrollBars", "setStencilRect", "clearStencilRect", "drawRect", "drawRectBorder", "drawTextureScaled", "prerender", "createChildren" }) do
@@ -49,7 +49,7 @@ function Base:setYScroll(value) self.scroll = value end
 function Base:getYScroll() return self.scroll or 0 end
 function Base:setScrollHeight(value) self.scrollHeight = value end
 function Base:getScrollHeight() return self.scrollHeight or 0 end
-function Base:setEnable(value) assert(type(value) == "boolean"); self.enabled = value end
+function Base:setEnable(value) assert(type(value) == "boolean"); self.enable = value end
 function Base:addOption(value) self.options[#self.options + 1] = value end
 function Base:addOptionWithData(text, data) self.options[#self.options + 1] = { text = text, data = data } end
 function Base:setSelected(index, value) if value == nil then self.selected = index else self.checked = value end end
@@ -251,7 +251,33 @@ local previous = panel
 panel = CookItForMePlanUI:new(0, entries, 2)
 assert(CookItForMe.planWindow == panel and panel ~= previous)
 panel:prerender()
-assert(panel.cookButton.enabled == false and panel.cancelButton == nil)
+assert(panel.cookButton.enable == false and panel.cancelButton == nil)
+local function hasColor(draws, hex)
+    local r, g, b = math.floor(hex / 65536) / 255, math.floor(hex / 256) % 256 / 255, hex % 256 / 255
+    for _, draw in ipairs(draws) do
+        if math.abs(draw[1] - r) < 0.001 and math.abs(draw[2] - g) < 0.001 and math.abs(draw[3] - b) < 0.001 then
+            return true
+        end
+    end
+    return false
+end
+local buttonFills = {}
+panel.cookButton.drawRect = function(_, x, y, width, height, alpha, r, g, b)
+    if x == 1 and y == 1 then buttonFills[#buttonFills + 1] = { r, g, b } end
+end
+panel.cookButton:prerender()
+assert(hasColor(buttonFills, 0xB85C55), "unavailable Cook action has an error fill")
+buttonFills = {}
+panel.cookButton:setEnable(true)
+panel.cookButton:prerender()
+assert(hasColor(buttonFills, 0x6FA36F), "available Cook action has a success fill")
+local frozenMarks = {}
+panel.lines = { { kind = "item", text = "Frozen ingredient", frozen = true } }
+panel.details.drawRect = function(_, x, y, width, height, alpha, r, g, b)
+    if width == 3 then frozenMarks[#frozenMarks + 1] = { r, g, b } end
+end
+panel.details:prerender()
+assert(hasColor(frozenMarks, 0x7098B8), "frozen ingredients have a blue left marker")
 local canceledCooking = false
 local originalCancel = CookItForMe.Cook.cancel
 CookItForMe.Cook.cancel = function() canceledCooking = true end

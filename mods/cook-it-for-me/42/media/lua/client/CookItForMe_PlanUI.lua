@@ -1,7 +1,6 @@
 -- Cook It For Me: панель «План готовки» (client, B42)
 -- Окно ресайзится игроком, размер и позиция сохраняются.
 
--- Hot reload revision: dashboard colour-system pass.
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISButton"
 require "ISUI/ISLabel"
@@ -38,12 +37,16 @@ local function setUiScale(panel, scale)
     UI_SCALE[panel] = scale
 end
 
-local ACCENT = { r = 0.95, g = 0.50, b = 0.10 }
-local GOOD = { r = 0.38, g = 0.82, b = 0.46 }
-local MUTED = { r = 0.62, g = 0.66, b = 0.70 }
--- Active selection: aged brass.  It suits a survivor's kitchen better than
--- cold UI blue, while staying distinct from green "ready" and red "blocked".
-local SELECTED = { r = 0.72, g = 0.62, b = 0.32 }
+local function rgb(hex)
+    return { r = math.floor(hex / 65536) / 255, g = math.floor(hex / 256) % 256 / 255, b = hex % 256 / 255 }
+end
+
+-- Single palette for NeatUI surfaces, custom controls, and the frozen-item marker.
+local THEME = {
+    background = rgb(0x141618), panel = rgb(0x1C1F22), hover = rgb(0x25292D), border = rgb(0x34393E),
+    text = rgb(0xF0ECE4), secondary = rgb(0xA7A29A), accent = rgb(0xD39A4A),
+    success = rgb(0x6FA36F), warning = rgb(0xC8A24D), error = rgb(0xB85C55), frozen = rgb(0x7098B8),
+}
 local RECIPE_HERO_ART
 
 local function truncateText(text, width, font)
@@ -60,39 +63,43 @@ local function drawNeatSurface(panel, path, x, y, w, h, alpha, r, g, b)
         texture:render(panel:getAbsoluteX() + x, panel:getAbsoluteY() + y, w, h, r, g, b, alpha)
     else
         panel:drawRect(x, y, w, h, alpha, r, g, b)
-        panel:drawRectBorder(x, y, w, h, math.min(1, alpha + .25), .35, .35, .35)
+        panel:drawRectBorder(x, y, w, h, math.min(1, alpha + .25), THEME.border.r, THEME.border.g, THEME.border.b)
     end
 end
 
-local function styleButton(button, color)
+local function styleButton(button, color, primary)
     button:setDisplayBackground(false)
     button.prerender = function(b)
-        local c = color or MUTED
+        local c = color or THEME.border
         local hot = b:isMouseOver()
-        local alpha = b.enabled == false and .25 or (hot and .95 or .72)
-        if b.pressed then alpha = .55 end
+        local fill = primary and (b.enable == false and THEME.error or THEME.success)
+            or (hot and THEME.hover or THEME.panel)
+        local ink = primary and (b.enable == false and THEME.text or THEME.background)
+            or (c == THEME.border and THEME.text or c)
+        if primary then c = fill end
+        if b.enable == false and not primary then fill, ink, c = THEME.panel, THEME.secondary, THEME.border end
         -- Background.png is a square NeatUI asset.  Stretching it into a
         -- long action button creates a pill that covers neighbouring labels.
         -- Use the framework's panel nine-patch and a precise colour fill.
         drawNeatSurface(b, "media/ui/NeatUI/DefaultPanel/ContentPanel_BG.png", 0, 0, b.width, b.height,
-            .92, .07, .07, .07)
-        b:drawRect(1, 1, b.width - 2, b.height - 2, alpha, c.r, c.g, c.b)
-        b:drawRectBorder(0, 0, b.width, b.height, hot and .9 or .58, c.r, c.g, c.b)
-        if hot and b.enabled ~= false then
-            b:drawRectBorder(1, 1, b.width - 2, b.height - 2, .55, 1, 1, 1)
+            .92, THEME.panel.r, THEME.panel.g, THEME.panel.b)
+        b:drawRect(1, 1, b.width - 2, b.height - 2, b.enable == false and not primary and .7 or 1, fill.r, fill.g, fill.b)
+        b:drawRectBorder(0, 0, b.width, b.height, 1, c.r, c.g, c.b)
+        if hot and b.enable ~= false then
+            b:drawRectBorder(1, 1, b.width - 2, b.height - 2, .55, THEME.accent.r, THEME.accent.g, THEME.accent.b)
         end
         if b.radiusGlyph then
             -- PZ's small UI font can drop a plus glyph on certain font scales.
             -- Draw the two primitives instead; it remains legible at every scale.
             local cx, cy = math.floor(b.width / 2), math.floor(b.height / 2)
-            b:drawRect(cx - uiPixel(b.target, 5), cy - uiPixel(b.target, 1), uiPixel(b.target, 10), uiPixel(b.target, 2), 1, 1, 1, 1)
+            b:drawRect(cx - uiPixel(b.target, 5), cy - uiPixel(b.target, 1), uiPixel(b.target, 10), uiPixel(b.target, 2), 1, ink.r, ink.g, ink.b)
             if b.radiusGlyph == "+" then
-                b:drawRect(cx - uiPixel(b.target, 1), cy - uiPixel(b.target, 5), uiPixel(b.target, 2), uiPixel(b.target, 10), 1, 1, 1, 1)
+                b:drawRect(cx - uiPixel(b.target, 1), cy - uiPixel(b.target, 5), uiPixel(b.target, 2), uiPixel(b.target, 10), 1, ink.r, ink.g, ink.b)
             end
         else
             local title = truncateText(b.renderTitle or b.fullTitle or b.title or "", b.width - uiPixel(b.target, 18), UIFont.Small)
             b:drawTextCentre(title, b.width / 2, math.floor((b.height - getTextManager():getFontHeight(UIFont.Small)) / 2),
-                1, 1, 1, b.enabled == false and .42 or 1, UIFont.Small)
+                ink.r, ink.g, ink.b, b.enable == false and not primary and .8 or 1, UIFont.Small)
         end
         b:updateTooltip()
     end
@@ -122,14 +129,16 @@ local function styleDishButton(button)
         local selected = b.internal == b.target.activeIndex
         local ready = b.entry and b.entry.plan ~= nil
         local hot = b:isMouseOver()
-        local color = selected and SELECTED or (ready and GOOD or { r = .58, g = .26, b = .24 })
+        local color = selected and THEME.accent or THEME.border
+        local fill = selected and THEME.hover or (hot and THEME.hover or THEME.panel)
         drawNeatSurface(b, "media/ui/NeatUI/DefaultPanel/ContentPanel_BG.png", 0, 0, b.width, b.height,
-            selected and .98 or (hot and .90 or .72), selected and .15 or .10, selected and .13 or .10, selected and .055 or .10)
+            1, fill.r, fill.g, fill.b)
         b:drawRectBorder(0, 0, b.width, b.height, selected and 1 or (hot and .78 or .42), color.r, color.g, color.b)
         local tex = dishIcon(b.entry)
         if tex then b:drawTextureScaled(tex, uiPixel(b.target, 9), uiPixel(b.target, 10), uiPixel(b.target, 32), uiPixel(b.target, 32), ready and 1 or .35, 1, 1, 1) end
         local title = truncateText(b.fullTitle or b.title, b.width - uiPixel(b.target, 60), UIFont.Small)
-        b:drawTextCentre(title, b.width * .66, uiPixel(b.target, 18), 1, 1, 1, ready and 1 or .48, UIFont.Small)
+        local ink = ready and THEME.text or THEME.secondary
+        b:drawTextCentre(title, b.width * .66, uiPixel(b.target, 18), ink.r, ink.g, ink.b, ready and 1 or .8, UIFont.Small)
         -- A status stripe communicates availability without overflowing in
         -- translated builds or competing with the dish title.
         b:drawRect(b.width - uiPixel(b.target, 7), uiPixel(b.target, 8), uiPixel(b.target, 3), b.height - uiPixel(b.target, 16), .95, color.r, color.g, color.b)
@@ -479,7 +488,6 @@ function CookItForMePlanUI:createChildren()
         local button = ISButton:new(x, y, width, px(24), label, self, CookItForMePlanUI.onSwitchDish)
         button.internal = i
         button:initialise(); button:instantiate()
-        if entry.plan then button:enableAcceptColor() else button:enableCancelColor() end
         button.fullTitle = label
         button.tooltip = entry.plan and label or (label .. "\n" .. failText(entry.failKey))
         -- ISButton renders title again after prerender().  The dish card owns
@@ -494,7 +502,7 @@ function CookItForMePlanUI:createChildren()
     y = y + px(34)
     self.controlsTop = y
     local strategyLabel = getText("UI_CookItForMe_SettingsStrategy")
-    self.strategyLabel = ISLabel:new(px(COL1), y + px(4), px(18), strategyLabel, .75, .75, .75, 1, UIFont.Small, true)
+    self.strategyLabel = ISLabel:new(px(COL1), y + px(4), px(18), strategyLabel, THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small, true)
     self.strategyLabel:initialise(); self:addChild(self.strategyLabel); self.strategyLabel:setVisible(false)
     local labelWidth = getTextManager():MeasureStringX(UIFont.Small, strategyLabel) + px(12)
     self.strategyCombo = ISComboBox:new(px(COL1) + labelWidth, y, math.max(px(140), self.width - labelWidth - px(36)), px(24), self, CookItForMePlanUI.onStrategyChange)
@@ -513,13 +521,13 @@ function CookItForMePlanUI:createChildren()
         b.fullTitle = option.text
         b.title = ""
         b:initialise(); b:instantiate()
-        styleButton(b, option.data == settings.strategy and SELECTED or MUTED)
+        styleButton(b, option.data == settings.strategy and THEME.accent or THEME.border)
         self:addChild(b)
         self.strategyButtons[i] = b
     end
     y = y + px(30)
     local radiusLabel = getText("UI_CookItForMe_SettingsRadius")
-    self.radiusLabel = ISLabel:new(px(COL1), y + px(4), px(18), radiusLabel, .75, .75, .75, 1, UIFont.Small, true)
+    self.radiusLabel = ISLabel:new(px(COL1), y + px(4), px(18), radiusLabel, THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small, true)
     self.radiusLabel:initialise(); self:addChild(self.radiusLabel); self.radiusLabel:setVisible(false)
     local radiusX = px(COL1) + getTextManager():MeasureStringX(UIFont.Small, radiusLabel) + px(12)
     self.radiusSpin = ISSpinBox:new(radiusX, y, px(56), px(24), self, CookItForMePlanUI.onRadiusChange)
@@ -536,11 +544,11 @@ function CookItForMePlanUI:createChildren()
         if spec.delta ~= 0 then b.radiusGlyph = spec.text end
         b.title = ""
         b:initialise(); b:instantiate()
-        styleButton(b, spec.delta == 0 and ACCENT or MUTED)
+        styleButton(b, THEME.border)
         self:addChild(b)
         self.radiusButtons[i] = b
     end
-    self.radiusHint = ISLabel:new(radiusX + px(68), y + px(4), px(18), getText("UI_CookItForMe_SettingsRadiusHintShort"), .55, .55, .55, 1, UIFont.Small, true)
+    self.radiusHint = ISLabel:new(radiusX + px(68), y + px(4), px(18), getText("UI_CookItForMe_SettingsRadiusHintShort"), THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small, true)
     self.radiusHint:initialise(); self:addChild(self.radiusHint); self.radiusHint:setVisible(false)
     y = y + px(30)
     self.completionSoundTick = ISTickBox:new(px(COL1), y, self.width - px(32), px(24), "", self, CookItForMePlanUI.onCompletionSoundChange)
@@ -554,7 +562,7 @@ function CookItForMePlanUI:createChildren()
     self.soundButton.fullTitle = getText("UI_CookItForMe_SettingsCompletionSound")
     self.soundButton.title = ""
     self.soundButton:initialise(); self.soundButton:instantiate()
-    styleButton(self.soundButton, settings.completionSound and GOOD or MUTED)
+    styleButton(self.soundButton, settings.completionSound and THEME.success or THEME.border)
     self:addChild(self.soundButton)
     self.finishCookingButton = ISButton:new(0, 0, 1, px(24), getText("UI_CookItForMe_SettingsFinishCooking"), self,
         CookItForMePlanUI.onFinishCookingButton)
@@ -562,14 +570,14 @@ function CookItForMePlanUI:createChildren()
     self.finishCookingButton.title = ""
     self.finishCookingButton.tooltip = getText("UI_CookItForMe_SettingsFinishCookingTooltip")
     self.finishCookingButton:initialise(); self.finishCookingButton:instantiate()
-    styleButton(self.finishCookingButton, settings.finishCooking and GOOD or MUTED)
+    styleButton(self.finishCookingButton, settings.finishCooking and THEME.success or THEME.border)
     self:addChild(self.finishCookingButton)
     self.keybindButton = ISButton:new(0, 0, px(120), px(24), "", self, CookItForMePlanUI.onPlanKeyButton)
     self.keybindButton.fullTitle = getKeyName(CookItForMe.getOpenPlanKey())
     self.keybindButton.title = ""
     self.keybindButton.tooltip = getText("UI_CookItForMe_KeybindTooltip")
     self.keybindButton:initialise(); self.keybindButton:instantiate()
-    styleButton(self.keybindButton, ACCENT)
+    styleButton(self.keybindButton, THEME.border)
     self:addChild(self.keybindButton)
     y = y + px(32)
     -- The preview is a NeatUI smooth scroll view.  The old ISPanel scrollbar
@@ -577,9 +585,9 @@ function CookItForMePlanUI:createChildren()
     self.dishRail = ISPanel:new(px(8), self:titleBarHeight() + px(6), self.width - px(16), math.max(px(28), y - self:titleBarHeight() - px(12)))
     self.dishRail:initialise(); self.dishRail:instantiate()
     self.dishRail.prerender = function(panel)
-        drawNeatSurface(panel, "media/ui/NeatUI/DefaultPanel/CategoryBG.png", 0, 0, panel.width, panel.height, .9, .10, .10, .10)
+        drawNeatSurface(panel, "media/ui/NeatUI/DefaultPanel/CategoryBG.png", 0, 0, panel.width, panel.height, 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
         panel:drawText(truncateText(getText("UI_CookItForMe_PlanTitle"), panel.width - px(20), UIFont.Small), px(10), px(5),
-            ACCENT.r, ACCENT.g, ACCENT.b, 1, UIFont.Small)
+            THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
     end
     self:addChild(self.dishRail)
     -- The panel itself renders the rail below the tab controls.  Keeping this
@@ -590,41 +598,40 @@ function CookItForMePlanUI:createChildren()
     self.summaryCard = ISPanel:new(px(8), y - px(4), self.width - px(16), px(58))
     self.summaryCard:initialise(); self.summaryCard:instantiate()
     self.summaryCard.prerender = function(panel)
-        drawNeatSurface(panel, "media/ui/NeatUI/DefaultPanel/ContentPanel_BG.png", 0, 0, panel.width, panel.height, .94, .10, .10, .10)
+        drawNeatSurface(panel, "media/ui/NeatUI/DefaultPanel/ContentPanel_BG.png", 0, 0, panel.width, panel.height, 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
         drawRecipeHeroArt(panel, self)
-        -- A restrained cyan spine gives the recipe card a clear focal point
-        -- without bringing back the removed status badge or cookware icon.
-        panel:drawRect(0, 0, px(4), panel.height, .95, SELECTED.r, SELECTED.g, SELECTED.b)
         local entry = self.entries[self.activeIndex]
+        local spine = entry and entry.plan and THEME.accent or THEME.error
+        panel:drawRect(0, 0, px(4), panel.height, .95, spine.r, spine.g, spine.b)
         if entry and entry.plan then
             local plan = entry.plan
             local contentX = px(14)
             local detailWidth = panel.width - contentX - px(14)
             panel:drawText(truncateText(getText(Catalog.DISHES[plan.dishKey].label), detailWidth, UIFont.Medium), contentX, px(20),
-                1, 1, 1, 1, UIFont.Medium)
+                THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Medium)
             local water = plan.dish.needsWater and getText("UI_CookItForMe_PlanWaterNeeded") or getText("UI_CookItForMe_PlanWaterNone")
             local equipment = plan.cookware:getDisplayName() .. "  /  " .. water
             equipment = truncateText(equipment, detailWidth, UIFont.Small)
-            panel:drawText(equipment, contentX, px(46), MUTED.r, MUTED.g, MUTED.b, 1, UIFont.Small)
+            panel:drawText(equipment, contentX, px(46), THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
             local statsH = px(38)
             local statsY = panel.height - statsH - px(8)
             local statW = math.max(px(76), math.floor((panel.width - px(42)) / 2))
             local statRightX = px(20) + statW
             -- Metrics are cards, not progress bars: saturated full-width
             -- fills made the centre of the UI visually heavy.
-            panel:drawRect(px(14), statsY, statW, statsH, .62, .06, .10, .08)
-            panel:drawRect(statRightX, statsY, statW, statsH, .62, .10, .075, .04)
-            panel:drawRect(px(14), statsY, statW, px(3), .95, GOOD.r, GOOD.g, GOOD.b)
-            panel:drawRect(statRightX, statsY, statW, px(3), .95, ACCENT.r, ACCENT.g, ACCENT.b)
-            panel:drawRectBorder(px(14), statsY, statW, statsH, .42, GOOD.r, GOOD.g, GOOD.b)
-            panel:drawRectBorder(statRightX, statsY, statW, statsH, .42, ACCENT.r, ACCENT.g, ACCENT.b)
+            panel:drawRect(px(14), statsY, statW, statsH, 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
+            panel:drawRect(statRightX, statsY, statW, statsH, 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
+            panel:drawRect(px(14), statsY, statW, px(3), 1, THEME.border.r, THEME.border.g, THEME.border.b)
+            panel:drawRect(statRightX, statsY, statW, px(3), 1, THEME.border.r, THEME.border.g, THEME.border.b)
+            panel:drawRectBorder(px(14), statsY, statW, statsH, 1, THEME.border.r, THEME.border.g, THEME.border.b)
+            panel:drawRectBorder(statRightX, statsY, statW, statsH, 1, THEME.border.r, THEME.border.g, THEME.border.b)
             local calories = getText("UI_CookItForMe_PlanCaloriesTotal", tostring(plan.predictedCalories or "?"))
             local hunger = getText("UI_CookItForMe_PlanHunger", tostring(plan.predictedHunger or "?"))
-            panel:drawText(truncateText(calories, statW - px(12), UIFont.Small), px(20), statsY - px(4), 1, 1, 1, 1, UIFont.Small)
-            panel:drawText(truncateText(hunger, statW - px(12), UIFont.Small), statRightX + px(6), statsY - px(4), 1, 1, 1, 1, UIFont.Small)
+            panel:drawText(truncateText(calories, statW - px(12), UIFont.Small), px(20), statsY - px(4), THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
+            panel:drawText(truncateText(hunger, statW - px(12), UIFont.Small), statRightX + px(6), statsY - px(4), THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
         else
-            panel:drawText(getText("UI_CookItForMe_PlanTitle"), px(14), px(12), .95, .48, .38, 1, UIFont.Small)
-            panel:drawText(failText(entry and entry.failKey), px(14), px(34), .95, .75, .70, 1, UIFont.Small)
+            panel:drawText(getText("UI_CookItForMe_PlanTitle"), px(14), px(12), THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
+            panel:drawText(failText(entry and entry.failKey), px(14), px(34), THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
         end
     end
     self:addChild(self.summaryCard)
@@ -667,17 +674,15 @@ function CookItForMePlanUI:createChildren()
             if #rows == 0 then rows[1] = "" end
             local rowH = math.max(lineH + px(8), #rows * lineH + px(8))
             if line.kind == "header" then
-                -- Orange is typography and a small accent, not a wall behind
-                -- every section.  It keeps the hierarchy without visual mud.
-                panel:drawRect(px(6), top - px(4), panel.width - px(24), rowH, .62, .08, .08, .08)
-                panel:drawRect(px(6), top - px(4), px(4), rowH, .95, ACCENT.r, ACCENT.g, ACCENT.b)
+                panel:drawRect(px(6), top - px(4), panel.width - px(24), rowH, 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
+                panel:drawRect(px(6), top - px(4), px(4), rowH, 1, THEME.border.r, THEME.border.g, THEME.border.b)
             elseif line.kind == "item" then
-                panel:drawRect(px(4), top - px(4), panel.width - px(22), rowH, .38, .12, .12, .12)
-                panel:drawRect(px(4), top - px(4), px(2), rowH, .44, MUTED.r, MUTED.g, MUTED.b)
-                if line.frozen then panel:drawRect(px(4), top - px(4), px(3), rowH, .88, .24, .60, .92) end
+                panel:drawRect(px(4), top - px(4), panel.width - px(22), rowH, 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
+                panel:drawRect(px(4), top - px(4), px(2), rowH, 1, THEME.border.r, THEME.border.g, THEME.border.b)
+                if line.frozen then panel:drawRect(px(4), top - px(4), px(3), rowH, 1, THEME.frozen.r, THEME.frozen.g, THEME.frozen.b) end
             elseif line.kind == "spice" then
-                panel:drawRect(px(4), top - px(4), panel.width - px(22), rowH, .46, .11, .095, .055)
-                panel:drawRect(px(4), top - px(4), px(3), rowH, .88, ACCENT.r, ACCENT.g, ACCENT.b)
+                panel:drawRect(px(4), top - px(4), panel.width - px(22), rowH, 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
+                panel:drawRect(px(4), top - px(4), px(3), rowH, 1, THEME.border.r, THEME.border.g, THEME.border.b)
             end
             if line.tex then
                 panel:drawTextureScaled(line.tex, px(8), top + math.floor((rowH - px(24)) / 2) - px(4), px(24), px(24), 1, 1, 1, 1)
@@ -685,9 +690,9 @@ function CookItForMePlanUI:createChildren()
             for i, text in ipairs(rows) do
                 local textY = top - 5 + (i - 1) * lineH
                 if line.kind == "header" then
-                    panel:drawText(text, left, textY, ACCENT.r, ACCENT.g, ACCENT.b, 1, UIFont.Small)
+                    panel:drawText(text, left, textY, THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
                 else
-                    panel:drawText(text, left, textY, .92, .92, .92, 1, UIFont.Small)
+                    panel:drawText(text, left, textY, THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
                 end
             end
             top = top + rowH + px(4)
@@ -710,11 +715,9 @@ function CookItForMePlanUI:createChildren()
         self:addChild(b); return b
     end
     self.cookButton = button(px(COL1), px(160), "UI_CookItForMe_PlanCook", CookItForMePlanUI.onCook)
-    self.cookButton:enableAcceptColor()
-    styleButton(self.cookButton, GOOD)
+    styleButton(self.cookButton, nil, true)
     self.closeButton = button(px(COL1 + 174), px(110), "UI_CookItForMe_SettingsClose", CookItForMePlanUI.close)
-    self.closeButton:enableCancelColor()
-    styleButton(self.closeButton, { r = .70, g = .30, b = .25 })
+    styleButton(self.closeButton, THEME.border)
 end
 
 function CookItForMePlanUI:prerender()
@@ -726,7 +729,7 @@ function CookItForMePlanUI:prerender()
     if not self.strategyButtons or not self.radiusButtons or not self.soundButton or not self.keybindButton then return end
     local px = function(value) return uiPixel(self, value) end
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/MainPanelBG_FlatTop.png", 0, self:titleBarHeight(), self.width,
-        self.height - self:titleBarHeight(), .96, .08, .08, .08)
+        self.height - self:titleBarHeight(), 1, THEME.background.r, THEME.background.g, THEME.background.b)
     local titleH = self:titleBarHeight()
     local pad, railW, gap = px(12), px(188), px(12)
     local railX, railY = pad, titleH + pad
@@ -738,10 +741,10 @@ function CookItForMePlanUI:prerender()
     -- every possible dish and its availability before reading a single line.
     local railH = math.min(math.max(px(80), btnY - railY - px(8)), px(62) + #self.tabButtons * px(54))
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/CategoryBG.png", railX, railY, railW, railH,
-        .9, .09, .09, .09)
+        1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
     local railTitle = getText("UI_CookItForMe_PlanDish", ""):gsub(":%s*$", "")
     railTitle = truncateText(railTitle, railW - px(24), UIFont.Small)
-    self:drawText(railTitle, railX + px(12), railY + px(10), ACCENT.r, ACCENT.g, ACCENT.b, 1, UIFont.Small)
+    self:drawText(railTitle, railX + px(12), railY + px(10), THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
     for i, button in ipairs(self.tabButtons) do
         button:setX(railX + px(8))
         -- The game font's visual descender extends below its draw origin.
@@ -763,7 +766,7 @@ function CookItForMePlanUI:prerender()
     local compactSettings = mainW < px(520)
     local settingsH = compactHeight and px(148) or px(160)
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/ContentPanel_BG.png", mainX, settingsY, mainW, settingsH,
-        .78, .08, .08, .08)
+        1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
     local keybindWidth = px(120)
     self.keybindButton:setX(mainX + mainW - keybindWidth - px(12))
     self.keybindButton:setY(settingsY + px(4))
@@ -771,7 +774,7 @@ function CookItForMePlanUI:prerender()
     self.keybindButton:setHeight(px(24))
     if not self.keyCaptureActive and not self.keyConflictDialog then updatePlanKeyButton(self) end
     self:drawText(truncateText(getText("UI_CookItForMe_Settings"), math.max(px(20), mainW - keybindWidth - px(40)), UIFont.Small), mainX + px(12), settingsY + px(8),
-        MUTED.r, MUTED.g, MUTED.b, 1, UIFont.Small)
+        THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
     self.strategyCombo:setVisible(false)
     -- A label needs more than the nominal font height in PZ: its shadow and
     -- descenders otherwise paint into the controls below it.
@@ -810,7 +813,7 @@ function CookItForMePlanUI:prerender()
     self.soundButton:setHeight(px(26))
     self.finishCookingButton:setHeight(px(26))
     self:drawText(truncateText(radiusLabel, math.max(px(20), self.radiusButtons[1].x - mainX - px(20)), UIFont.Small), mainX + px(12),
-        settingsY + (compactHeight and px(72) or px(76)), .82, .82, .82, 1, UIFont.Small)
+        settingsY + (compactHeight and px(72) or px(76)), THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
     self.radiusSpin:setWidth(px(62))
     self.strategyLabel:setVisible(false); self.radiusLabel:setVisible(false); self.radiusHint:setVisible(false)
 
@@ -819,7 +822,7 @@ function CookItForMePlanUI:prerender()
     self.content:setHeight(math.max(px(32), btnY - self.content.y - px(10)))
     self.details:setWidth(self.content.width)
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/ContentPanel_BG.png", self.content.x, self.content.y,
-        self.content.width, self.content.height, .62, .06, .06, .06)
+        self.content.width, self.content.height, 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
 
     self.cookButton:setX(mainX); self.cookButton:setWidth(math.max(px(120), mainW * .62)); self.cookButton:setY(btnY)
     self.closeButton:setX(mainX + self.cookButton.width + px(8)); self.closeButton:setWidth(math.max(px(88), mainW - self.cookButton.width - px(8))); self.closeButton:setY(btnY)
@@ -831,7 +834,7 @@ function CookItForMePlanUI:prerender()
     local tab = self.tabButtons[self.activeIndex]
     if tab then
         self:drawRectBorder(tab.x - 2, tab.y - 2, tab.width + 4, tab.height + 4, 1,
-            SELECTED.r, SELECTED.g, SELECTED.b)
+            THEME.accent.r, THEME.accent.g, THEME.accent.b)
     end
 end
 
