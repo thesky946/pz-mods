@@ -40,8 +40,21 @@ function Invoke-Test {
     }
 }
 
-Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.Tests.ps1' -File |
-    Sort-Object Name |
+$testFiles = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.Tests.ps1' -File | Sort-Object Name)
+foreach ($requiredTest in @(
+    'AnalyzerBaseline.Tests.ps1',
+    'NewModReliability.Tests.ps1',
+    'PzContractSnapshot.Tests.ps1',
+    'RunnerExitCode.Tests.ps1',
+    'ValidationEvidence.Tests.ps1',
+    'WorkshopHarnessExclusion.Tests.ps1'
+)) {
+    if (@($testFiles | Where-Object Name -eq $requiredTest).Count -ne 1) {
+        throw "$requiredTest must be included in the aggregate tool test suite."
+    }
+}
+
+$testFiles |
     ForEach-Object {
         try { . $_.FullName }
         catch {
@@ -52,4 +65,5 @@ Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.Tests.ps1' -File |
 
 Write-Host "$script:TestPasses passed, $script:TestFailures failed."
 if ($script:TestFailures -gt 0) { exit 1 }
+exit 0
 

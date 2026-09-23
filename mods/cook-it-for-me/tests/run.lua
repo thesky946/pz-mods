@@ -1,5 +1,8 @@
 -- Run from tests/. Each file resets the PZ doubles it needs.
 local tests = {
+    "test_action_simulator.lua",
+    "test_simulated_scenarios.lua",
+    "test_scenario_registry.lua",
     "test_forecast.lua",
     "test_foodlogic.lua",
     "test_cook.lua",

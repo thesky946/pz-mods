@@ -38,6 +38,29 @@ function New-ForgeStatusFixture {
     }
 }
 
+Invoke-Test 'parses ISO Forge timestamps under ru-RU and preserves their UTC instant' {
+    $f = New-ForgeStatusFixture
+    $previousCulture = [Globalization.CultureInfo]::CurrentCulture
+    try {
+        [Globalization.CultureInfo]::CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('ru-RU')
+        $beforeRead = [DateTimeOffset]::UtcNow
+        $expectedAge = [Math]::Round(($beforeRead - [DateTimeOffset]::Parse(
+            '2026-09-19T10:00:03Z',
+            [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::RoundtripKind
+        )).TotalSeconds)
+        $status = Get-ForgeGameStatus -ModInfo $f.Mod -ForgeConfigPath $f.Config -ConsolePath $f.Console -ProcessLookup {
+            param($WatcherPid, $Kind)
+            if ($Kind -eq 'game') { return $true }
+            return $WatcherPid -eq 123
+        }
+        Assert-True ([Math]::Abs($status.reload.ageSeconds - $expectedAge) -lt 5) 'Reload age must preserve the UTC instant from ISO JSON under ru-RU.'
+    } finally {
+        [Globalization.CultureInfo]::CurrentCulture = $previousCulture
+        Remove-Item -LiteralPath $f.Root -Recurse -Force
+    }
+}
+
 Invoke-Test 'reports ready watcher and never mutates bridge files' {
     $f = New-ForgeStatusFixture
     try {

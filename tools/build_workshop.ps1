@@ -79,6 +79,21 @@ foreach ($d in @("42", "common")) {
     Copy-Item $from -Destination (Join-Path $ModOut $d) -Recurse -Force
 }
 
+# Development harness, mailbox, controller, and evidence files are never user payload.
+$excludedPattern = '(?i)(PzModsTestHarness|pzmodtests|run-game-scenario|scenario[-_.]?evidence)'
+Get-ChildItem -LiteralPath $ModOut -Recurse -Force |
+    Sort-Object { $_.FullName.Length } -Descending |
+    Where-Object {
+        $relative = $_.FullName.Substring($ModOut.Length).TrimStart('\', '/') -replace '\\', '/'
+        $relative -match $excludedPattern
+    } |
+    ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
+
+$excludedRemainder = @(Get-ChildItem -LiteralPath $ModOut -Recurse -Force | Where-Object {
+    ($_.FullName.Substring($ModOut.Length).TrimStart('\', '/') -replace '\\', '/') -match $excludedPattern
+})
+if ($excludedRemainder.Count -gt 0) { Fail 'development-only harness artifacts remain in the Workshop payload' }
+
 # Workshop metadata lives at the item root
 Copy-Item $SrcWorkshopTxt (Join-Path $Out "workshop.txt") -Force
 if (Test-Path $SrcPreview) {
