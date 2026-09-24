@@ -100,6 +100,8 @@ function Actions.new(session, fail)
                 if not player:getVehicle() and getGameSpeed() > 2 then
                     log("walk: reducing game speed to 2 for vanilla pathfinding")
                     setGameSpeed(2)
+                    -- B42 resets the multiplier to 1 in setGameSpeed; the x5 HUD icon reads it.
+                    getGameTime():setMultiplier(5)
                 end
                 return valid(self)
             end
@@ -128,20 +130,21 @@ function Actions.new(session, fail)
         return { container = container, square = square }
     end
 
-    local function move(player, item, destination, callback)
+    local function move(player, item, destination, callback, onFailure)
+        local moveFailed = onFailure or fail
         local src = sourceOf(item)
-        if not src then fail("ItemMissing"); return end
+        if not src then moveFailed("ItemMissing"); return end
         if src.container == destination then callback(); return end
         local square = destination == player:getInventory() and src.square or destination:getSourceGrid()
         walkTo(player, square, function()
-            if not destination:hasRoomFor(player, item) then fail("NoRoom"); return end
+            if not destination:hasRoomFor(player, item) then moveFailed("NoRoom"); return end
             local action
             if src.world then
-                if not src.world:getSquare() then fail("ItemMissing"); return end
+                if not src.world:getSquare() then moveFailed("ItemMissing"); return end
                 action = ISGrabItemAction:new(player, src.world, 50)
             else
                 if item:getContainer() ~= src.container or not src.container:contains(item) then
-                    fail("ItemMissing"); return
+                    moveFailed("ItemMissing"); return
                 end
                 action = ISInventoryTransferAction:new(player, item, src.container, destination, nil)
             end
@@ -151,7 +154,7 @@ function Actions.new(session, fail)
                     local world = worldItem(item)
                     arrived = world and world:getSquare() == destination:getSourceGrid()
                 end
-                if not arrived then fail("TransferFailed"); return end
+                if not arrived then moveFailed("TransferFailed"); return end
                 callback()
             end, "transferring"))
         end)
@@ -202,6 +205,19 @@ function Actions.new(session, fail)
             end
             ISAddItemInRecipe.checkName(session.pot, recipe)
             ISAddItemInRecipe.checkTemperature(session.pot, ingredient, recipe)
+            if ingredient:isSpice() then
+                local spices = session.pot:getSpices()
+                local found = false
+                if spices then
+                    for i = 0, spices:size() - 1 do
+                        if spices:get(i) == ingredient:getFullType() then found = true; break end
+                    end
+                end
+                if not found then
+                    CookItForMe.diagnostic("spice not recorded in dish: " .. ingredient:getFullType())
+                    fail("ActionFailed"); return
+                end
+            end
             if not ingredient:isSpice() then
                 session.addedCount = session.addedCount + 1
                 if frozen then session.frozenCount = session.frozenCount + 1 end
@@ -211,7 +227,14 @@ function Actions.new(session, fail)
             if ingredient:getContainer() == inv and original.container ~= inv then
                 local dest = original.container
                 if original.world then dest = ItemContainer.new("floor", original.square, nil) end
-                move(player, ingredient, dest, nextStep)
+                if ingredient:isSpice() then
+                    move(player, ingredient, dest, nextStep, function(key)
+                        if ingredient:getContainer() == inv and inv:contains(ingredient) then
+                            CookItForMe.diagnostic("spice leftover kept in inventory: " .. tostring(key))
+                            nextStep()
+                        else fail(key) end
+                    end)
+                else move(player, ingredient, dest, nextStep) end
             else nextStep() end
         end)
     end

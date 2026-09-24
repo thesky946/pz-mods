@@ -62,6 +62,7 @@ function Env.item(fullType, calories)
     function item:haveExtraItems() return #self.extra > 0 end
     function item:getExtraItems() return Env.list(self.extra) end
     function item:getMinutesToCook() return self.minutes end
+    function item:getSpices() return Env.list(self.spices) end
     function item:setMinutesToCook(v) self.minutes = v end
     function item:getFluidContainer()
         return { getCapacity = function() return 2 end, getAmount = function() return item.water or 0 end, adjustSpecificFluidAmount = function() end }
@@ -167,7 +168,12 @@ function Env.new(dishKey)
                 e.inv:AddItem(pot)
                 e.pot = pot
             end
-            pot.extra[#pot.extra + 1] = ingredient.fullType
+            if ingredient.spice then
+                pot.spices = pot.spices or {}
+                pot.spices[#pot.spices + 1] = ingredient.fullType
+            else
+                pot.extra[#pot.extra + 1] = ingredient.fullType
+            end
             pot.calories = pot.calories + ingredient.calories
             return pot
         end,
@@ -204,6 +210,9 @@ function Env.new(dishKey)
     e.player.getVehicle = function() return nil end
     getGameSpeed = function() return e.speed or 1 end
     setGameSpeed = function(value) e.speed = value end
+    getGameTime = function() return {
+        setMultiplier = function(_, value) e.multiplier = value end,
+    } end
     ISWalkToTimedAction = { new = function(_, _, square)
         local a = action("walk", function() e.square = square end)
         a.isValid = function() return getGameSpeed() <= 2 and not e.noPath end

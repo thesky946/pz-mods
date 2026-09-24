@@ -189,6 +189,51 @@ test("floor ingredients and leftover spices use real source kinds", function()
     assert(e:state().cooking and e.pot.container == e.stoveInv)
     assert(e.spice.world and e.spice.world:getSquare() == e.square)
 end)
+test("successful spice addition continues when original container fills", function()
+    local e = Env.new()
+    local addItem = e.recipe.addItem
+    e.recipe.addItem = function(recipe, pot, ingredient, player)
+        local result = addItem(recipe, pot, ingredient, player)
+        if ingredient == e.spice then e.source.full = true end
+        return result
+    end
+    start(e)
+    assert(e:state().cooking and e.on, "added meal should reach stove")
+    assert(e.spice.container == e.inv, "leftover stays with player")
+    assert(e.pot:getSpices():get(0) == "Base.Salt", "spice was actually added")
+end)
+test("failed leftover transfer keeps seasoning and finishes cooking", function()
+    local e = Env.new()
+    local create = ISInventoryTransferAction.new
+    ISInventoryTransferAction.new = function(...)
+        local action = create(...)
+        if action.item == e.spice and action.destContainer == e.source then
+            action.perform = function() end
+        end
+        return action
+    end
+    start(e)
+    assert(e:state().cooking and e.on, "dish should reach stove after return failure")
+    assert(e.spice.container == e.inv and e.inv:contains(e.spice), "leftover remains owned")
+end)
+test("fully consumed seasoning does not require a return transfer", function()
+    local e = Env.new()
+    e.spice.leftover = false
+    start(e)
+    assert(e:state().cooking and e.on, "consumed spice still permits cooking")
+    assert(e.spice.container == nil and e.pot:getSpices():get(0) == "Base.Salt")
+end)
+test("spice add no-op cannot heat an unseasoned dish", function()
+    local e = Env.new()
+    local addItem = e.recipe.addItem
+    e.recipe.addItem = function(recipe, pot, ingredient, player)
+        if ingredient == e.spice then return pot end
+        return addItem(recipe, pot, ingredient, player)
+    end
+    start(e)
+    assert(not e:state().active and not e.on, "failed add stops before heating")
+    assert(e.pot:getSpices():size() == 0, "dish remains unseasoned")
+end)
 test("ordinary user action survives explicit cooking cancel", function()
     local e = Env.new()
     e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))
