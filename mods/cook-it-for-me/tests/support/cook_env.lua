@@ -46,10 +46,12 @@ function Env.item(fullType, calories)
     function item:getHungerChange() return self.hunger end
     function item:getHungChange() return self.hunger end
     function item:isRotten() return self.rotten or false end
+    function item:getPoisonPower() return self.poisonPower or 0 end
     function item:isSpice() return self.spice or false end
     function item:isFrozen() return self.frozen or false end
     function item:isCooked() return self.cooked or false end
     function item:isBurnt() return self.burnt or false end
+    function item:isBroken() return self.broken or false end
     function item:setCooked(v) self.cooked = v end
     function item:getContainer() return self.container end
     function item:getSquare() return nil end

@@ -50,12 +50,15 @@ function Actions.new(session, fail)
             session.pending[action] = nil
             callback()
         end)
-        local nativeCallback = action.setOnComplete ~= nil
+        local nativeCallback = type(action.setOnComplete) == "function"
         if nativeCallback then
             action:setOnComplete(complete)
         end
         local perform = action.perform
+        local performed = false
         action.perform = function(self)
+            if not session.active or performed then return end
+            performed = true
             local ok, err = pcall(perform, self)
             if not ok then session.onError(err); return end
             if not nativeCallback then complete() end
@@ -165,6 +168,84 @@ function Actions.new(session, fail)
         move(player, item, player:getInventory(), callback)
     end
 
+    local function prepare(player, prep, callback)
+        if not ISHandcraftAction then require "Entity/TimedActions/ISHandcraftAction" end
+        -- A running game may still hold the earlier version of our script recipe.
+        -- Make only our preparation recipe portable until ScriptManager reads the
+        -- corrected InHandCraft tag on the next game launch.
+        if prep.recipe:requiresSpecificWorkstation() then
+            local tags = prep.recipe:getModTags()
+            tags:add("InHandCraft")
+            prep.recipe:setTags(tags)
+            if prep.recipe:requiresSpecificWorkstation() then fail("RecipeUnavailable"); return end
+        end
+        local inventory = player:getInventory()
+        if session.pot:getContainer() ~= inventory or not inventory:contains(session.pot) then
+            fail("ItemMissing"); return
+        end
+        for _, item in ipairs(prep.items) do
+            if item:getContainer() ~= inventory or not inventory:contains(item) then
+                fail("ItemMissing"); return
+            end
+            if instanceof(item, "Food") and not Catalog.isSafeIngredient(item) then
+                fail("PlanChanged"); return
+            end
+        end
+        local containers = ArrayList.new()
+        ---@cast containers ArrayList<ItemContainer>
+        containers:add(inventory)
+        ---@diagnostic disable-next-line: param-type-mismatch -- vanilla ISHandcraftAction also passes nil for optional bench/object.
+        local logic = HandcraftLogic.new(player, nil, nil)
+        logic:setContainers(containers)
+        logic:setRecipe(prep.recipe)
+        logic:setManualSelectInputs(true)
+        logic:clearManualInputs()
+        local inputs = prep.recipe:getInputs()
+        local function assign(index, values)
+            local selected = ArrayList.new()
+            ---@cast selected ArrayList<InventoryItem>
+            for _, value in ipairs(values) do selected:add(value) end
+            return logic:setManualInputsFor(inputs:get(index), selected)
+        end
+        local selected
+        if #prep.items == 3 then
+            selected = assign(0, { prep.items[1] })
+                and assign(1, { session.pot }) and assign(2, { prep.items[2], prep.items[3] })
+        else
+            selected = assign(0, { session.pot }) and assign(1, { prep.items[1] })
+        end
+        if not selected or not logic:canPerformCurrentRecipe() then fail("NotEnough"); return end
+        local before = {}
+        local inventoryItems = inventory:getItems()
+        for i = 0, inventoryItems:size() - 1 do before[inventoryItems:get(i)] = true end
+        local action = ISHandcraftAction.FromLogic(logic)
+        if not action then fail("ActionFailed"); return end
+        local performCraft = action.perform
+        ---@diagnostic disable-next-line: redundant-parameter -- PZ invokes perform with the action as self.
+        action.perform = function(self)
+            for _, item in ipairs(prep.items) do
+                if instanceof(item, "Food") and not Catalog.isSafeIngredient(item) then
+                    fail("PlanChanged"); return
+                end
+            end
+            return performCraft(self)
+        end
+        -- In singleplayer ISHandcraftAction:perform() crafts the item but does
+        -- not call onComplete; that callback is used by the client/server path.
+        rawset(action, "setOnComplete", false)
+        enqueue(track(action, function()
+            local found
+            local items = inventory:getItems()
+            for i = 0, items:size() - 1 do
+                local item = items:get(i)
+                if not before[item] and item:getFullType() == prep.expected then found = item; break end
+            end
+            if not found then fail("ActionFailed"); return end
+            session.pot = found
+            callback()
+        end, "preparing"))
+    end
+
     local function water(player, cookware, sink, callback)
         walkTo(player, sink:getSquare(), function()
             if not sink:hasFluid() then fail("NoWater"); return end
@@ -191,7 +272,7 @@ function Actions.new(session, fail)
             if session.addedCount == 0 and not Catalog.isUsableBase(dish, session.pot) then
                 fail("NoEmptyBowl"); return
             end
-            if ingredient:isRotten() or ingredient:isBurnt()
+            if not Catalog.isSafeIngredient(ingredient)
                 or (dish.allowCookedIngredients and not recipe:needToBeCooked(ingredient))
                 or (not dish.allowCookedIngredients and ingredient:isCooked()) then
                 fail("PlanChanged"); return
@@ -317,7 +398,7 @@ function Actions.new(session, fail)
         end
     end
 
-    return { take = take, water = water, add = add, toStove = toStove, heat = heat,
+    return { take = take, water = water, prepare = prepare, add = add, toStove = toStove, heat = heat,
         findOnStove = findOnStove, onComplete = track, monitor = monitor, move = move }
 end
 

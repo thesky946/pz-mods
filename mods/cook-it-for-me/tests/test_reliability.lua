@@ -176,6 +176,34 @@ test("partial add exception is not retried", function()
     for i = 1, 10 do e.now = e.now + 1000; e.tick() end
     assert(calls == 1 and not e:state().active and not e.on and not e.allowFrozen)
 end)
+test("internal failure stays quiet and permits a new cooking run", function()
+    local e = Env.new()
+    local original = e.recipe.addItem
+    local opened = 0
+    e.player.getPlayerNum = function() return 0 end
+    CookItForMe.openPlan = function(index)
+        assert(index == 0)
+        opened = opened + 1
+    end
+    e.recipe.addItem = function(...) original(...); error("failure after consuming ingredient") end
+    start(e)
+    assert(not e:state().active and not e.on)
+    for _, message in ipairs(e.messages) do
+        assert(message ~= "UI_CookItForMe_ActionFailed", "internal error must not appear above the player")
+    end
+    e.now = e.now + 1000; e.tick()
+    e.now = e.now + 1000; e.tick()
+    assert(opened == 1, "fresh plan opens once after cleanup")
+    e.recipe.addItem = original
+    e.pot = e.source:AddItem(Env.item("Base.Pot"))
+    e.collected.cookware = { e.pot }
+    e.food = e.source:AddItem(Env.item("Base.Carrot", 40))
+    e.collected.foods = { e.food }
+    assert(e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup"))))
+    assert(e:state().active, "a new run can start after the failure")
+    e.cook.cancel()
+    CookItForMe.openPlan = nil
+end)
 test("floor ingredients and leftover spices use real source kinds", function()
     local e = Env.new()
     for _, item in ipairs({e.food, e.spice}) do

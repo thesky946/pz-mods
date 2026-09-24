@@ -30,7 +30,7 @@ function Cook.fail(player, key)
     else
         local msg = getText("UI_CookItForMe_" .. key)
         CookItForMe.log("FAIL: " .. msg)
-        player:Say(msg)
+        if key ~= "ActionFailed" then player:Say(msg) end
     end
 end
 
@@ -56,8 +56,10 @@ function Cook.start(player, dishKey, plan)
     if not ok or not valid then
         key = ok and key or "ActionFailed"
         CookItForMe.diagnostic("start rejected: " .. tostring(key) .. " " .. tostring(valid))
-        player:Say(detail and getText("UI_CookItForMe_" .. key, detail)
-            or getText("UI_CookItForMe_" .. key))
+        if key ~= "ActionFailed" then
+            player:Say(detail and getText("UI_CookItForMe_" .. key, detail)
+                or getText("UI_CookItForMe_" .. key))
+        end
         return false, key
     end
     Cook.session = Session.new(player, plan)
@@ -76,9 +78,25 @@ function Cook.tick()
         local ok, err = pcall(Cook.execution.tick)
         if not ok and Cook.session then Cook.session.onError(err) end
     end
+    local session = Cook.session
+    ---@diagnostic disable-next-line: unnecessary-if -- runtime session state can change after an action completes.
+    if session and session.retryPending and not session.active then
+        session.retryPending = nil
+        local ok, err = pcall(function()
+            local window = CookItForMe.planWindow
+            ---@diagnostic disable-next-line: unnecessary-if -- client window is created after this shared module loads.
+            if window then
+                window:rebuild(false)
+            elseif type(CookItForMe.openPlan) == "function" then
+                CookItForMe.openPlan(session.player:getPlayerNum())
+            end
+        end)
+        if not ok then CookItForMe.diagnostic("retry plan failed: " .. tostring(err)) end
+    end
 end
 
 -- Keep one event handler; dispatch through the current facade on reload.
+---@diagnostic disable-next-line: unnecessary-if -- registration survives Lua hot reload.
 if not Cook.onTickRegistered then
     Cook.onTickRegistered = true
     Events.OnTick.Add(function() Cook.tick() end)

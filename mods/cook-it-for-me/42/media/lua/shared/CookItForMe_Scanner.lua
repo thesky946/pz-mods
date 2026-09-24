@@ -139,7 +139,7 @@ end
 -- (антибиотики/сигареты/мусор в B42 — тоже класс Food, отсекаются ванильным isItemFood).
 -- Замороженные допускаются.
 function Scanner.collectFood(player, scan, includeCooked)
-    local out = { foods = {}, spices = {}, cookware = {} }
+    local out = { foods = {}, spices = {}, cookware = {}, items = {} }
 
     local seenItems, seenContainers = {}, {}
     local addItem
@@ -155,13 +155,14 @@ function Scanner.collectFood(player, scan, includeCooked)
         if item.IsInventoryContainer and item:IsInventoryContainer() then
             visit(item:getInventory()); return
         end
+        table.insert(out.items, item)
         if not instanceof(item, "Food") then
             if Catalog.isCookware(item:getFullType()) then
                 table.insert(out.cookware, item)
             end
             return
         end
-        if item:isRotten() or item:isBurnt() or (item:isCooked() and not includeCooked) then return end
+        if not Catalog.isSafeIngredient(item) or (item:isCooked() and not includeCooked) then return end
         if item:isSpice() then
             table.insert(out.spices, item)
             return

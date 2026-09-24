@@ -1,5 +1,6 @@
 package.path = "../42/media/lua/shared/?.lua;../42/media/lua/client/?.lua;./?.lua;" .. package.path
 local Env = require "support/cook_env"
+local Catalog = require "CookItForMe_Dishes"
 local e = Env.new()
 package.loaded.CookItForMe_PlanUI = nil
 CookItForMePlanUI = nil
@@ -75,6 +76,7 @@ for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBo
     _G[name] = Base:derive()
     package.loaded["ISUI/" .. name] = true
 end
+ISComboBox.setEnable = false -- the installed B42 combo has no setEnable method
 function ISTextEntryBox:new(text, x, y, width, height)
     return Base.new(self, x, y, width, height, text)
 end
@@ -241,8 +243,8 @@ assert(panel.soundButton.y >= panel.radiusButtons[1].y + panel.radiusButtons[1].
     "compact settings put both controls below radius")
 assert(panel.soundButton.x >= panel.content.x and panel.soundButton.x + panel.soundButton.width <= panel.content.x + panel.content.width,
     "compact sound control stays inside the content column")
-assert(panel.tabButtons[1].y >= panel:titleBarHeight() + 12 + 50,
-    "dish cards must leave a full line below the rail heading")
+assert(panel.dishNav.y >= panel:titleBarHeight() + 12 + 44 and panel.tabButtons[1].y == 0,
+    "scrolling dish cards start below the rail heading")
 assert(panel.strategyButtons[1].y >= panel.summaryCard.y + panel.summaryCard.height + 10 + 44,
     "strategy controls must leave a full line below the settings heading")
 for _, size in ipairs({ { 900, 700 }, { 560, 460 }, { 800, 600 }, { 560, 460 } }) do
@@ -256,8 +258,8 @@ for _, size in ipairs({ { 900, 700 }, { 560, 460 }, { 800, 600 }, { 560, 460 } }
         "dashboard keeps the recipe viewport beside the dish rail")
 end
 for _, button in ipairs(panel.tabButtons) do
-    assert(button.x < panel.content.x and button.y + button.height < panel.cookButton.y,
-        "dish cards stay in the left navigation rail")
+    assert(button.parent == panel.dishNav and panel.dishNav.x + button.x < panel.content.x,
+        "dish cards stay in the scrolling left navigation rail")
 end
 panel.lines = { { kind = "text", text = string.rep("longword", 30) } }
 panel.content:prerender()
@@ -683,6 +685,15 @@ panel = CookItForMe.planWindow
 assert(panel.ingredientSort.key == "calories" and panel.ingredientSort.descending
     and panel.pickerSort.key == "hunger" and panel.pickerSort.descending,
     "both saved table sorts survive reopening the plan window")
+local failedWindow = panel
+local failedPlan = panel.entries[panel.activeIndex].plan
+local originalStart = CookItForMe.Cook.start
+CookItForMe.Cook.start = function() return false, "ActionFailed" end
+panel:onCook()
+CookItForMe.Cook.start = originalStart
+panel = CookItForMe.planWindow
+assert(panel and panel ~= failedWindow and panel.entries[panel.activeIndex].plan ~= failedPlan,
+    "failed start rebuilds a fresh plan so the player can cook again")
 local canceledCooking = false
 local originalCancel = CookItForMe.Cook.cancel
 CookItForMe.Cook.cancel = function() canceledCooking = true end
@@ -698,6 +709,75 @@ local six = {
     { key = "Salad", failKey = "ActionFailed" }, { key = "Fruit Salad", failKey = "ActionFailed" },
 }
 local saladPanel = CookItForMePlanUI:new(0, six, 5)
+assert(saladPanel.lines[1].text == "UI_CookItForMe_ActionFailed" and saladPanel.lines[2] == nil,
+    "unrelated planning failures must not suggest moving toward the stove")
+local recipePanel = CookItForMePlanUI:new(0, { { key = "Omelette", failKey = "RecipeUnavailable" } }, 1)
+assert(recipePanel.lines[1].text == "UI_CookItForMe_RecipeUnavailable" and recipePanel.lines[2] == nil,
+    "missing preparation recipe has its own message without an unrelated stove hint")
+local prepEgg = Env.item("Base.Egg")
+prepEgg.getTexture = function() return "egg texture" end
+local prepFork = Env.item("Base.Fork")
+prepFork.nonFood = true
+prepFork.isFrozen = nil
+prepFork.getTexture = function() return "fork texture" end
+local prepPan = Env.item("Base.Pan")
+recipePanel.entries[1].plan = {
+    prep = { items = { prepFork, prepEgg }, count = 2 },
+    rows = { { id = 98, kind = "prep", prepIndex = 1, item = prepFork },
+        { id = 99, kind = "prep", prepIndex = 2, item = prepEgg } },
+    picked = { items = {}, spices = {} }, dishKey = "Omelette", dish = Catalog.DISHES.Omelette,
+    cookware = prepPan, predictedCalories = 191, predictedHunger = 28,
+}
+recipePanel:refreshIngredients()
+assert(recipePanel.lines[1].kind == "prepGroup" and recipePanel.lines[2].tex == "fork texture"
+    and recipePanel.lines[3].tex == "egg texture" and recipePanel.lines[4].kind == "prepEnd",
+    "preparation inputs render as a separate card with item icons")
+assert(pcall(function() recipePanel.rowWidgets["Omelette:98"]:prerender() end),
+    "non-food preparation tools render without a Food.isFrozen method")
+local prepWidget = assert(recipePanel.rowWidgets["Omelette:99"])
+assert(prepWidget.replaceButton.visible and prepWidget.removeButton.visible,
+    "preparation inputs expose the same replacement and removal actions as additions")
+local previousText = getText
+getText = function(key, value)
+    if key == "UI_CookItForMe_PlanCaloriesTotal" or key == "UI_CookItForMe_PlanHunger" then
+        return key .. ": ~" .. tostring(value)
+    end
+    return previousText(key, value)
+end
+local summaryText = {}
+recipePanel.summaryCard.drawText = function(_, value) summaryText[#summaryText + 1] = value end
+local previousTexture = getTexture
+getTexture = function() return nil end
+recipePanel.summaryCard:prerender()
+assert(not table.concat(summaryText, " "):find("~~", 1, true), "metric cards show one approximation mark")
+getText = previousText
+assert(summaryText[2]:find("UI_CookItForMe_CookwareLabel", 1, true)
+    and not table.concat(summaryText, " "):find("UI_CookItForMe_PlanWaterNeeded", 1, true),
+    "recipes without water show the cookware selector label without a water notice")
+local soupPot = Env.item("Base.Pot")
+recipePanel.entries[1].plan.dishKey = "Soup"
+recipePanel.entries[1].plan.dish = Catalog.DISHES.Soup
+recipePanel.entries[1].plan.cookware = soupPot
+recipePanel.summaryCard:setWidth(1600)
+recipePanel.compactHero = false
+summaryText = {}
+recipePanel.summaryCard:prerender()
+assert(summaryText[2]:find("UI_CookItForMe_CookwareLabel", 1, true)
+    and summaryText[3]:find("UI_CookItForMe_PlanWater", 1, true),
+    "recipes requiring water retain the water source notice beside the selector")
+recipePanel.entries[1].plan.dishKey = "Salad"
+recipePanel.entries[1].plan.dish = Catalog.DISHES.Salad
+recipePanel.entries[1].plan.cookware = Env.item("Base.Bowl")
+summaryText = {}
+recipePanel.summaryCard:prerender()
+assert(summaryText[2]:find("UI_CookItForMe_CookwareLabel", 1, true)
+    and not table.concat(summaryText, " "):find("UI_CookItForMe_PlanWaterNeeded", 1, true),
+    "salad summary omits water information")
+recipePanel.entries[1].plan.dishKey = "Omelette"
+recipePanel.entries[1].plan.dish = Catalog.DISHES.Omelette
+recipePanel.entries[1].plan.cookware = prepPan
+getTexture = previousTexture
+recipePanel:close()
 saladPanel.width, saladPanel.height = 560, 460
 saladPanel:prerender()
 assert(saladPanel.finishCookingButton.visible == false and settings.finishCooking == false,
@@ -708,5 +788,130 @@ end
 saladPanel.activeIndex = 1
 saladPanel:prerender()
 assert(saladPanel.finishCookingButton.visible == true, "hot dish shows finish toggle again")
+local previousGetItem, previousGetTexture = getItem, getTexture
+local requestedIcons = {}
+getItem = function(fullType)
+    return { getIcon = function() return fullType end }
+end
+getTexture = function(path) return path end
+local iconPanel = CookItForMePlanUI:new(0, {
+    { key = "Soup", failKey = "NoStove" }, { key = "Stew", failKey = "NoStove" },
+    { key = "Pasta", failKey = "NoStove" }, { key = "Rice", failKey = "NoStove" },
+}, 1)
+for _, button in ipairs(iconPanel.tabButtons) do
+    button.drawTextureScaled = function(_, texture) requestedIcons[button.entry.key] = texture end
+    button:prerender()
+end
+for _, key in ipairs({ "Soup", "Stew", "Pasta", "Rice" }) do
+    assert(requestedIcons[key] == "Item_Base.Pot", key .. " uses the same pot icon as soup and stew")
+end
+getItem, getTexture = previousGetItem, previousGetTexture
+iconPanel:close()
+local secondPot = e.source:AddItem(Env.item("Base.PotForged"))
+secondPot.nonFood = true
+e.collected.cookware[#e.collected.cookware + 1] = secondPot
+local cookwarePlan = assert(CookItForMe.Cook.plan(e.player, "Stew"))
+local scanner = require "CookItForMe_Scanner"
+local originalScan = scanner.scanAround
+local openingRescans = 0
+scanner.scanAround = function(...)
+    openingRescans = openingRescans + 1
+    return originalScan(...)
+end
+local cookwarePanel = CookItForMePlanUI:new(0, { { key = "Stew", plan = cookwarePlan } }, 1,
+    e.scan, { regular = e.collected, cooked = e.collected })
+cookwarePanel:setWidth(1600)
+cookwarePanel:setHeight(900)
+assert(cookwarePanel.cookwareButton and #cookwarePanel.cookwareOptions == 2,
+    "a styled summary control offers both physical cooking vessels")
+assert(cookwarePanel.cookwareButton.fullTitle:find(e.pot:getDisplayName(), 1, true),
+    "the automatic vessel is shown when the window opens")
+cookwarePanel:prerender()
+scanner.scanAround = originalScan
+assert(openingRescans == 0, "creating and first rendering the catalog reuse its opening scan")
+local heroText = {}
+cookwarePanel.summaryCard.drawText = function(_, value, x, y) heroText[value] = { x = x, y = y } end
+local savedTexture = getTexture
+getTexture = function() return nil end
+cookwarePanel.summaryCard:prerender()
+getTexture = savedTexture
+local waterLine = heroText[getText("UI_CookItForMe_PlanWaterNeeded")]
+local cookwareLine = heroText[getText("UI_CookItForMe_CookwareLabel")]
+assert(waterLine and cookwareLine and waterLine.y == cookwareLine.y
+    and waterLine.x >= cookwarePanel.cookwareButton.x + cookwarePanel.cookwareButton.width + 16,
+    "water and cookware share one aligned row without overlapping")
+assert(cookwarePanel.cookwareButton.x >= 14 + getTextManager():MeasureStringX(UIFont.Small,
+    getText("UI_CookItForMe_CookwareLabel")) + 12,
+    "the cookware control clears the localized label")
+assert(math.abs(cookwarePanel.cookwarePicker.y - (cookwarePanel.summaryCard.y
+    + cookwarePanel.cookwareButton.y + cookwarePanel.cookwareButton.height + 4)) <= 1,
+    "the cookware choices open directly below the selector")
+local originalChoose = CookItForMe.Cook.planEditor.chooseCookware
+local originalOptions = CookItForMe.Cook.planEditor.cookwareOptions
+CookItForMe.Cook.planEditor.chooseCookware = function()
+    error("opening the cookware picker must not rebuild a plan")
+end
+CookItForMe.Cook.planEditor.cookwareOptions = function()
+    error("opening the cookware picker must not scan the world again")
+end
+CookItForMePlanUI.onOpenCookwarePicker(cookwarePanel)
+CookItForMe.Cook.planEditor.chooseCookware = originalChoose
+CookItForMe.Cook.planEditor.cookwareOptions = originalOptions
+assert(cookwarePanel.cookwarePicker and #cookwarePanel.cookwarePicker.buttons == 2,
+    "the cookware choices open in their own styled list")
+local pickerCaption
+cookwarePanel.cookwarePicker.drawText = function(_, value) pickerCaption = value end
+cookwarePanel.cookwarePicker:prerender()
+assert(pickerCaption == nil and cookwarePanel.cookwareCloseButton == nil
+    and cookwarePanel.cookwareScroll.y == 4,
+    "the cookware choices start at the top without a heading or close button")
+assert(cookwarePanel.cookwareList.height < cookwarePanel.cookwareScroll.height,
+    "two cookware choices fit without a scrollbar")
+assert(cookwarePanel.cookwarePickerVisible, "the cookware choices are open")
+cookwarePanel.cookwarePicker.getMouseX = function() return 20 end
+cookwarePanel.cookwarePicker.getMouseY = function() return 20 end
+cookwarePanel.cookwarePicker:onMouseDownOutside(0, 0)
+assert(cookwarePanel.cookwarePickerVisible,
+    "mouse events dispatched to the popup while clicking a choice must not close it")
+cookwarePanel.cookwareButton.isMouseOver = function() return true end
+cookwarePanel.cookwarePicker:onMouseDownOutside(0, 0)
+assert(cookwarePanel.cookwarePickerVisible,
+    "the outside handler lets the selector's own click toggle the list")
+cookwarePanel.cookwareButton.isMouseOver = nil
+cookwarePanel.cookwarePicker.getMouseX = function() return -1 end
+cookwarePanel.cookwarePicker.getMouseY = function() return -1 end
+assert(cookwarePanel.cookwarePicker:onMouseDownOutside(0, 0) == false
+    and not cookwarePanel.cookwarePickerVisible,
+    "a click outside closes the list without consuming the click")
+CookItForMePlanUI.onOpenCookwarePicker(cookwarePanel)
+CookItForMePlanUI.onOpenCookwarePicker(cookwarePanel)
+assert(not cookwarePanel.cookwarePickerVisible and not cookwarePanel.cookwarePicker.visible,
+    "clicking the selector again dismisses the list without changing the plan")
+CookItForMePlanUI.onOpenCookwarePicker(cookwarePanel)
+cookwarePanel.cookwarePicker.getMouseX = function() return 20 end
+cookwarePanel.cookwarePicker.getMouseY = function() return 52 end
+cookwarePanel.cookwarePicker:onMouseDownOutside(0, 0)
+assert(cookwarePanel.cookwarePickerVisible, "a click on a cookware row keeps it clickable")
+local selectedRow = cookwarePanel.cookwarePicker.buttons[2]
+selectedRow.callback(selectedRow.target, selectedRow)
+assert(cookwarePanel.entries[1].plan.cookware == secondPot,
+    "clicking a cookware row changes the exact plan used by Cook")
+for _ = 1, 2 do
+    local extra = e.source:AddItem(Env.item("Base.Pot"))
+    extra.nonFood = true
+    e.collected.cookware[#e.collected.cookware + 1] = extra
+end
+cookwarePanel:refreshCookwareOptions()
+cookwarePanel:prerender()
+CookItForMePlanUI.onOpenCookwarePicker(cookwarePanel)
+assert(#cookwarePanel.cookwarePicker.buttons == 4
+    and cookwarePanel.cookwareList.height < cookwarePanel.cookwareScroll.height,
+    "four cookware choices fit without a scrollbar")
+CookItForMePlanUI.onCloseCookwarePicker(cookwarePanel)
+e.source:Remove(secondPot)
+cookwarePanel:refreshCookwareOptions()
+assert(cookwarePanel.cookwareButton.fullTitle:find(secondPot:getDisplayName(), 1, true),
+    "a vanished selected vessel is still shown instead of silently selecting another")
+cookwarePanel:close()
 for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBox", "ISSpinBox", "ISTickBox", "ISPanel", "ISTextEntryBox" }) do package.loaded["ISUI/" .. name] = nil end
 print("UI STATE AND LAYOUT TESTS PASSED")

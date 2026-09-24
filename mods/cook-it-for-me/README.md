@@ -11,13 +11,13 @@ Automatic meal preparation for Project Zomboid Build 42. Pick a meal and approve
 
 - Preview the complete meal plan before anything moves.
 - Perform the workflow through real vanilla timed actions instead of instant crafting.
-- Cook soup, stew, stir-fry, and roasted vegetables, or assemble ready-to-eat salads using vanilla evolved recipes.
+- Cook soup, stew, stir-fry, roasted vegetables, omelettes, pasta, and rice, or assemble ready-to-eat salads using vanilla cooking actions.
 - Choose whether to finish heating hot meals after adding ingredients; the preference persists between plans and is hidden on salad tabs.
 - Stop safely when danger approaches or the world no longer matches the approved plan.
 - Track stove ownership, cooking progress, and the exact dish object through completion.
-- English, Russian, Spanish, Brazilian Portuguese, Simplified Chinese, French, and Turkish UI.
+- English, Russian, Spanish, Brazilian Portuguese, Simplified Chinese, French, German, and Turkish UI.
 
-Build 42 and single-player only. The mod adds no items or recipes and is safe to add to an existing save.
+Build 42 and single-player only. The mod adds no items; it includes copies of vanilla preparation recipes for omelette, pasta and rice and is safe to add to an existing save.
 
 ## How to use
 
@@ -36,12 +36,16 @@ Build 42 and single-player only. The mod adds no items or recipes and is safe to
 | Roasted Vegetables | Roasting Pan | No |
 | Salad | Bowl or Clay Bowl | No |
 | Fruit Salad | Bowl or Clay Bowl | No |
+| Omelette | Pan or Forged Pan; two raw eggs and a mixing utensil | No |
+| Pasta | Saucepan, Copper Saucepan, Pot, or Forged Pot; dry pasta | Yes |
+| Rice | Saucepan, Copper Saucepan, Pot, or Forged Pot; dry rice | Yes |
 
 ## Requirements and limits
 
 - The right-click entry appears near a stove; the configured hotkey opens the planner elsewhere. Hot meals need a reachable powered non-microwave stove when finish cooking is enabled. Salads never require or use a stove.
 - Compatible cookware and ingredients within the configured search radius. Salads need an empty bowl and can use cooked ingredients when the vanilla recipe requires them.
-- A reachable water source for soup and stew.
+- A reachable water source for soup, stew, pasta, and rice.
+- Omelette, pasta, and rice use copies of the vanilla preparation recipes without the work-surface requirement, then add ingredients through vanilla evolved recipes. Their previewed nutrition is approximate until the base exists.
 - Build 42 single-player; multiplayer execution is deliberately blocked because no network protocol is implemented.
 - Other mods that replace the tracked dish object during cooking are not guessed automatically; the session fails safely instead.
 
@@ -54,7 +58,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and runtime contrac
 ## Ingredient selection
 
 - Search the player inventory, nested bags, reachable containers, and nearby floor items.
-- Skip rotten, burnt, and already-composed food. Cooked food is considered for salads only when the vanilla recipe accepts its cooked state; hot meals continue to skip it.
+- Skip poisonous, rotten, burnt, and already-composed food. Stale food remains eligible. Cooked food is considered for salads only when the vanilla recipe accepts its cooked state; hot meals continue to skip it.
 - Use no more than two portions of one item type and respect the vanilla recipe's ingredient limit.
 - Choose maximum calories, minimum calories, or maximum hunger relief.
 - Allow frozen food. Hot meals apply a cooking-time penalty proportional to the frozen share. Salads have no heating step; a frozen ingredient can become an unfrozen salad immediately when vanilla replaces the bowl.

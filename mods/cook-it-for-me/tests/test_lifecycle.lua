@@ -63,6 +63,19 @@ e.cook.start(e.player, "Soup")
 eq(failKey, nil, "no global failKey")
 eq(e.messages[1], "UI_CookItForMe_NoStove", "failed start message")
 
+-- An internal validation exception stays in diagnostics; the next run remains available.
+e = Env.new()
+local retryPlan = assert(e.cook.plan(e.player, "Soup"))
+local isBroken = e.stove.isBroken
+e.stove.isBroken = function() error("validation fault") end
+local started, reason = e.cook.start(e.player, "Soup", retryPlan)
+eq(started, false, "validation fault rejects current request")
+eq(reason, "ActionFailed", "validation fault code")
+eq(#e.messages, 0, "internal fault has no overhead message")
+e.stove.isBroken = isBroken
+assert(e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup"))))
+e.cook.cancel()
+
 -- Reloading the facade preserves the running session and one event handler.
 e = Env.new()
 e.cook.start(e.player, "Soup", assert(e.cook.plan(e.player, "Soup")))

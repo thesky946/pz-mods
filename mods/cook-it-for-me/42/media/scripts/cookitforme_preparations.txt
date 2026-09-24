@@ -1,0 +1,119 @@
+module Base
+{
+    craftRecipe CookItForMePrepareOmelette
+    {
+        timedAction = MixingBowl,
+        time = 20,
+        OnCreate = RecipeCodeOnCreate.makeOmelette,
+        Tags = InHandCraft;Cooking,
+        category = Cooking,
+        xpAward = Cooking:3,
+        inputs
+        {
+            item 1 tags[base:mixingutensil] mode:keep flags[MayDegradeVeryLight],
+            item 1 [Base.Pan;Base.PanForged] mappers[panType] flags[InheritCondition],
+            item 2 tags[base:egg] flags[AllowFrozenItem;IsUncookedFoodItem;InheritFoodAge;ItemCount],
+        }
+        outputs
+        {
+            item 1 mapper:panType,
+        }
+        itemMapper panType
+        {
+            Base.OmeletteRecipe = Base.Pan,
+            Base.OmeletteRecipeForged = Base.PanForged,
+        }
+    }
+
+    craftRecipe CookItForMePlacePastaInSaucepan2
+    {
+        timedAction = MixingBowl,
+        time = 50,
+        Tags = InHandCraft;Cooking,
+        category = Cooking,
+        inputs
+        {
+            item 1 [Base.Saucepan;Base.SaucepanCopper] flags[InheritCondition;ItemCount] mappers[saucepanType] mode:destroy,
+            -fluid 0.6 categories[Water] mode:mixture,
+            item 10 tags[base:pasta] flags[AllowFrozenItem],
+        }
+        outputs
+        {
+            item 1 mapper:saucepanType,
+        }
+        itemMapper saucepanType
+        {
+            Base.WaterSaucepanPasta = Base.Saucepan,
+            Base.WaterSaucepanPastaCopper = Base.SaucepanCopper,
+        }
+    }
+
+    craftRecipe CookItForMePlaceRiceInSaucepan2
+    {
+        timedAction = MixingBowl,
+        time = 50,
+        Tags = InHandCraft;Cooking,
+        category = Cooking,
+        inputs
+        {
+            item 1 [Base.Saucepan;Base.SaucepanCopper] flags[InheritCondition;ItemCount] mappers[saucepanType] mode:destroy,
+            -fluid 0.6 categories[Water] mode:mixture,
+            item 10 [Base.Rice] flags[AllowFrozenItem],
+        }
+        outputs
+        {
+            item 1 mapper:saucepanType,
+        }
+        itemMapper saucepanType
+        {
+            Base.WaterSaucepanRice = Base.Saucepan,
+            Base.WaterSaucepanRiceCopper = Base.SaucepanCopper,
+        }
+    }
+
+    craftRecipe CookItForMePlacePastaInCookingPot2
+    {
+        timedAction = MixingBowl,
+        time = 50,
+        Tags = InHandCraft;Cooking,
+        category = Cooking,
+        inputs
+        {
+            item 1 [Base.Pot;Base.PotForged] mode:destroy flags[InheritCondition;ItemCount] mappers[potType],
+            -fluid 1.5 categories[Water] mode:mixture,
+            item 10 tags[base:pasta] flags[AllowFrozenItem],
+        }
+        outputs
+        {
+            item 1 mapper:potType,
+        }
+        itemMapper potType
+        {
+            Base.WaterPotPasta = Base.Pot,
+            Base.WaterPotForgedPasta = Base.PotForged,
+        }
+    }
+
+    craftRecipe CookItForMePlaceRiceInCookingPot2
+    {
+        timedAction = MixingBowl,
+        time = 50,
+        Tags = InHandCraft;Cooking,
+        category = Cooking,
+        inputs
+        {
+            item 1 [Base.Pot;Base.PotForged] mode:destroy flags[InheritCondition;ItemCount] mappers[potType],
+            -fluid 1.5 categories[Water] mode:mixture,
+            item 10 [Base.Rice] flags[AllowFrozenItem],
+        }
+        outputs
+        {
+            item 1 mapper:potType,
+        }
+        itemMapper potType
+        {
+            Base.WaterPotRice = Base.Pot,
+            Base.WaterPotForgedRice = Base.PotForged,
+        }
+    }
+}

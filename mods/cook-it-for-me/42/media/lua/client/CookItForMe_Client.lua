@@ -171,14 +171,30 @@ function CookItForMe.openPlan(player)
     local p = getSpecificPlayer(player)
     if not p then return false end
 
+    local scan = Scanner.scanAround(p, CookItForMe.getSettings(p).radius)
+    local withCooked = Scanner.collectFood(p, scan, true)
+    local withoutCooked = {
+        foods = {}, spices = {}, cookware = withCooked.cookware, items = withCooked.items,
+    }
+    for _, item in ipairs(withCooked.foods) do
+        if not item:isCooked() then withoutCooked.foods[#withoutCooked.foods + 1] = item end
+    end
+    for _, item in ipairs(withCooked.spices) do
+        if not item:isCooked() then withoutCooked.spices[#withoutCooked.spices + 1] = item end
+    end
+
     -- табы всех блюд; недоступные помечаем failKey (показываются красными)
     local entries = {}
     for _, key in ipairs(CookItForMe.Cook.ALL_DISHES) do
-        local plan, failKey = CookItForMe.Cook.plan(p, key)
+        local dish = CookItForMe.Cook.DISHES[key]
+        local collected = dish.allowCookedIngredients and withCooked or withoutCooked
+        local plan, failKey = CookItForMe.Cook.plan(p, key, nil, scan, collected)
         table.insert(entries, { key = key, plan = plan, failKey = failKey })
     end
 
-    return CookItForMePlanUI:new(player, entries)
+    local collections = { regular = withoutCooked, cooked = withCooked }
+    ---@diagnostic disable-next-line: redundant-parameter
+    return CookItForMePlanUI:new(player, entries, nil, scan, collections)
 end
 
 function CookItForMe.onFillWorldObjectContextMenu(player, context, worldobjects, test)

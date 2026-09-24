@@ -110,10 +110,14 @@ MainOptions = {
 
 local openCount, closeCount, openedPlayer, openedEntries = 0, 0
 CookItForMe = CookItForMe or {}
+CookItForMe.getSettings = function() return { radius = 5 } end
+local plannedScans, plannedCollections = {}, {}
 CookItForMe.Cook = {
-    ALL_DISHES = { "Soup", "Stew" },
+    ALL_DISHES = { "Soup", "Stew", "Salad" },
+    DISHES = { Soup = {}, Stew = {}, Salad = { allowCookedIngredients = true } },
     isMultiplayer = function() return isClient() or isServer() end,
-    plan = function(player, dish)
+    plan = function(player, dish, _, scan, collected)
+        plannedScans[dish], plannedCollections[dish] = scan, collected
         return player.planByDish[dish], player.failByDish and player.failByDish[dish]
     end,
 }
@@ -139,8 +143,20 @@ CookItForMePlanUI = {
 }
 package.loaded.CookItForMe_Shared = true
 package.loaded.CookItForMe_FoodLogic = true
-local scanCount = 0
-package.loaded.CookItForMe_Scanner = { scanAround = function() scanCount = scanCount + 1; return { stove = true } end }
+local scanCount, collectCount = 0, 0
+local rawFood = { isCooked = function() return false end }
+local cookedFood = { isCooked = function() return true end }
+package.loaded.CookItForMe_Scanner = {
+    scanAround = function()
+        scanCount = scanCount + 1
+        return { stove = true, containers = {}, floorItems = {} }
+    end,
+    collectFood = function(_, _, includeCooked)
+        collectCount = collectCount + 1
+        assert(includeCooked == true, "the shared collection includes salad ingredients")
+        return { foods = { rawFood, cookedFood }, spices = {}, cookware = {}, items = {} }
+    end,
+}
 package.loaded.CookItForMe_Cook = true
 package.loaded.CookItForMe_PlanUI = true
 package.loaded.CookItForMe_Client = nil
@@ -199,7 +215,14 @@ assert(openCount == 1, "the configured key opens the plan in single-player")
 assert(openedPlayer == 0 and openedEntries[1].plan.id == "soup-plan" and openedEntries[2].plan == nil,
     "hotkey builds entries through the same plan builder")
 assert(vehicleChecks == 0, "hotkey is independent of vehicle context")
-assert(scanCount == 0, "hotkey is independent of stove context")
+assert(scanCount == 1 and collectCount == 1,
+    "opening the catalog scans nearby squares and inventory once")
+assert(plannedScans.Soup == plannedScans.Stew and plannedScans.Soup == plannedScans.Salad,
+    "all dishes use the same nearby-world scan")
+assert(plannedCollections.Soup == plannedCollections.Stew
+    and #plannedCollections.Soup.foods == 1 and plannedCollections.Soup.foods[1] == rawFood
+    and #plannedCollections.Salad.foods == 2 and plannedCollections.Salad.foods[2] == cookedFood,
+    "hot dishes exclude cooked ingredients while salads may include them")
 
 for _, modifier in ipairs({ KEY_LSHIFT, KEY_LCONTROL, KEY_LMENU }) do
     Keyboard.down = { [modifier] = true }

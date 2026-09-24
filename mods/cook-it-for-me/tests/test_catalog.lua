@@ -1,6 +1,8 @@
 package.path = "../42/media/lua/shared/?.lua;./?.lua;" .. package.path
 local Env = require "support/cook_env"
 local Catalog = require "CookItForMe_Dishes"
+assert(Catalog.DISHES.Drinks == nil, "drinks must not be a public dish")
+assert(not Catalog.matchRecipe("HotDrink", "Drinks", "Base.Mugl"), "removed drink recipes must not match")
 local expected = {
     { "Soup", "Base.Pot", "SoupForged", "UI_CookItForMe_DishSoup" },
     { "Stew", "Base.PotForged", "StewForged", "UI_CookItForMe_DishStew" },
@@ -19,19 +21,19 @@ for i, entry in ipairs(expected) do
     assert(Catalog.findCookware({ cookware = { pot } }, entry[1]) == pot)
     assert(Catalog.isCookware(entry[2]))
 end
-assert(table.concat(Catalog.ALL_DISHES, ",") == "Soup,Stew,Stir fry,Roasted Vegetables,Salad,Fruit Salad")
+assert(table.concat(Catalog.ALL_DISHES, ",") == "Soup,Stew,Stir fry,Roasted Vegetables,Salad,Fruit Salad,Omelette,Pasta,Rice")
 assert(not Catalog.matchRecipe("SaladClay", "Salad", "Base.Bowl"))
 assert(not Catalog.matchRecipe("Salad", "Salad", "Base.ClayBowl"))
 assert(not Catalog.matchRecipe("FruitSaladClay", "Fruit Salad", "Base.Bowl"))
 assert(not Catalog.matchRecipe("Roasted Vegetables Forged", "Roasted Vegetables"))
-assert(not Catalog.isCookware("Base.Saucepan"))
+assert(Catalog.isCookware("Base.Saucepan"))
 assert(Catalog.isCookware("Base.PanForged"))
 assert(Catalog.isCookware("Base.Bowl") and Catalog.isCookware("Base.ClayBowl"))
 assert(Catalog.DISHES.Salad.needsHeat == false and Catalog.DISHES["Fruit Salad"].allowCookedIngredients)
 assert(Catalog.allowsFrozen(Catalog.DISHES.Salad, {}) == true)
 assert(not Catalog.matchRecipe("FruitSalad", "Salad"))
 local dishes = Catalog.availableDishes({ cookware = { Env.item("Base.Pot"), Env.item("Base.PotForged"), Env.item("Base.Pan") } })
-assert(table.concat(dishes, ",") == "Soup,Stew,Stir fry", "order and no duplicate dishes")
+assert(table.concat(dishes, ",") == "Soup,Stew,Stir fry,Omelette,Pasta,Rice", "order and no duplicate dishes")
 
 -- Use the real scanner collection boundary with non-food objects.
 package.loaded.CookItForMe_Scanner = nil
@@ -45,7 +47,8 @@ local roast = Env.item("Base.RoastingPan")
 local collected = Scanner.collectFood({ getInventory = function() return inv end }, {
     containers = { floorBag }, floorItems = { roast },
 })
-assert(#collected.cookware == 3)
+assert(#collected.cookware == 4)
+assert(#collected.items == 4, "preparation resources include items from bags, inventory and floor")
 assert(collected.cookware[1] == pan and collected.cookware[2] == roast and collected.cookware[3] == pot)
 assert(#collected.foods == 0 and #collected.spices == 0)
 print("CATALOG TESTS PASSED")

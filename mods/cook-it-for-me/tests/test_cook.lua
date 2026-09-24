@@ -2,6 +2,13 @@ package.path = "../42/media/lua/shared/?.lua;../42/media/lua/client/?.lua;./?.lu
 local Env = require "support/cook_env"
 local function eq(a, b, message) assert(a == b, (message or "mismatch") .. ": " .. tostring(a) .. " ~= " .. tostring(b)) end
 
+local removedDrink = Env.new("Soup")
+local staleDrinkPlan = assert(removedDrink.cook.plan(removedDrink.player, "Soup"))
+staleDrinkPlan.dishKey = "Drinks"
+local accepted, reason = removedDrink.cook.start(removedDrink.player, "Drinks", staleDrinkPlan)
+assert(accepted == false and reason == "PlanChanged" and #removedDrink.queue == 0,
+    "a stale drinks plan must never start after the dish was removed")
+
 for _, dish in ipairs({ "Soup", "Stew", "Stir fry", "Roasted Vegetables" }) do
     for _, strategy in ipairs({ "max", "min", "hunger" }) do
         local e = Env.new(dish)

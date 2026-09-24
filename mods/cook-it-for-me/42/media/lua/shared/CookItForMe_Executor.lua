@@ -36,7 +36,11 @@ function Executor.new(session)
         end
         session.pending = {}
         CookItForMe.diagnostic("finish: " .. reason .. " stage=" .. tostring(stage) .. " reason=" .. tostring(key))
-        if key then pcall(function() session.player:Say(getText("UI_CookItForMe_" .. key)) end) end
+        if reason == "error" and key == "ActionFailed" then
+            session.retryPending = true
+        elseif key then
+            pcall(function() session.player:Say(getText("UI_CookItForMe_" .. key)) end)
+        end
     end
     function execution.fail(key) finish("error", key) end
     function execution.cancel() finish("cancelled", "ActionInterrupted") end
@@ -52,6 +56,12 @@ function Executor.new(session)
         steps[#steps + 1] = function(next) actions.take(player, plan.cookware, next) end
         if plan.dish.needsWater then
             steps[#steps + 1] = function(next) actions.water(player, plan.cookware, plan.scan.sink, next) end
+        end
+        if plan.prep then
+            for _, item in ipairs(plan.prep.items) do
+                steps[#steps + 1] = function(next) actions.take(player, item, next) end
+            end
+            steps[#steps + 1] = function(next) actions.prepare(player, plan.prep, next) end
         end
         for _, item in ipairs(plan.picked.items) do
             steps[#steps + 1] = function(next) actions.add(player, plan.recipe, item, next) end

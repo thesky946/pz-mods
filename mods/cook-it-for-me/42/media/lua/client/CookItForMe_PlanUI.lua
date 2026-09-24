@@ -159,6 +159,7 @@ end
 local function dishIcon(entry)
     local dish = entry and Catalog.DISHES[entry.key]
     local base = dish and dish.bases and dish.bases[1]
+    if entry and (entry.key == "Pasta" or entry.key == "Rice") then base = "Base.Pot" end
     local script = base and getItem and getItem(base)
     return script and script:getIcon() and getTexture("Item_" .. script:getIcon()) or nil
 end
@@ -289,10 +290,10 @@ end
 local function buildRenderLines(entries, activeIndex, sort)
     local entry = entries[activeIndex]
     if not entry or not entry.plan then
-        local lines = {
-            { kind = "text", text = failText(entry and entry.failKey) },
-            { kind = "text", text = getText("UI_CookItForMe_HintCheckRadius") },
-        }
+        local lines = { { kind = "text", text = failText(entry and entry.failKey) } }
+        if entry and entry.failKey == "NoStove" then
+            lines[#lines + 1] = { kind = "text", text = getText("UI_CookItForMe_HintCheckRadius") }
+        end
         -- если не хватает посуды — показываем иконки нужной посуды
         if entry and entry.failKey == "NoCookware" then
             local dish = CookItForMe.Cook.DISHES and CookItForMe.Cook.DISHES[entry.key]
@@ -313,6 +314,19 @@ local function buildRenderLines(entries, activeIndex, sort)
     local plan = entry.plan
     local lines = {}
     local picked = plan.picked
+
+    if plan.prep then
+        table.insert(lines, { kind = "prepGroup", text = getText("UI_CookItForMe_GroupPrep") })
+        for _, row in ipairs(plan.rows) do
+            if row.kind == "prep" then
+                local item = row.item
+                table.insert(lines, { kind = "ingredient", prep = true, id = row.id, item = item,
+                    tex = item and item:getTexture() or nil, empty = item == nil,
+                    name = item and item:getDisplayName() or getText("UI_CookItForMe_AddFood") })
+            end
+        end
+        table.insert(lines, { kind = "prepEnd" })
+    end
 
     for _, group in ipairs({ { kind = "food", count = #picked.items, label = "UI_CookItForMe_GroupFoods" },
         { kind = "spice", count = #picked.spices, label = "UI_CookItForMe_GroupSpices" } }) do
@@ -373,7 +387,8 @@ local function stylePickerRow(button)
         local nameCenter = nameX + getTextManager():MeasureStringX(UIFont.Small, name) / 2
         b:drawTextCentre(name, nameCenter, textY,
             THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
-        local cal, hunger = b.calories and tostring(b.calories) or "?", b.hunger and tostring(b.hunger) or "?"
+        local cal = b.prepCandidate and "-" or (b.calories and tostring(b.calories) or "?")
+        local hunger = b.prepCandidate and "-" or (b.hunger and tostring(b.hunger) or "?")
         if cols.compact then
             local summary = getText("UI_CookItForMe_CompactRow", cal) .. " / "
                 .. getText("UI_CookItForMe_HungerInDish") .. ": " .. hunger
@@ -566,6 +581,7 @@ end
 
 function CookItForMePlanUI:close()
     if self.picker then self:closePicker() end
+    if self.cookwarePicker then self.cookwarePicker:setVisible(false); self.cookwarePickerVisible = false end
     if KEY_CAPTURE_PANEL == self then KEY_CAPTURE_PANEL = nil end
     if self.keyConflictDialog then
         self.keyConflictDialog:destroy()
@@ -597,12 +613,26 @@ function CookItForMePlanUI:rebuild(preserveEdits)
         local plan, failKey = CookItForMe.Cook.plan(p, key)
         if preserveEdits ~= false then
             for _, old in ipairs(self.entries) do
-                if old.key == key and old.plan and old.plan.edited then
+                if old.key == key and old.plan and (old.plan.edited or old.plan.cookwareChosen) then
                     -- Retain manual composition when changing settings other than strategy.
                     -- Its old items are checked against the current scan before cooking.
                     old.plan.settings = CookItForMe.getSettings(p)
                     if plan then old.plan.scan = plan.scan end
                     plan, failKey = old.plan, nil
+                    break
+                end
+            end
+        end
+        if preserveEdits == false then
+            for _, old in ipairs(self.entries) do
+                if old.key == key and old.plan and old.plan.cookwareChosen then
+                    local selected = CookItForMe.Cook.planEditor.plan(p, key, old.plan.cookware)
+                    if selected then
+                        selected.cookwareChosen = true
+                        plan, failKey = selected, nil
+                    else
+                        plan, failKey = old.plan, nil
+                    end
                     break
                 end
             end
@@ -813,20 +843,120 @@ function CookItForMePlanUI:onCook()
     if not entry or not entry.plan then return end
     log("PLAN COOK CLICKED: " .. tostring(entry.key))
     local ok = CookItForMe.Cook.start(getSpecificPlayer(self.player), entry.key, entry.plan)
-    if ok then self:close() else self.lastValidationAt = nil end
+    if ok then self:close() else self:rebuild(false) end
 end
 
 function CookItForMePlanUI:onSwitchDish(button)
     local i = button.internal
     if i == self.activeIndex then return end
     if self.pickerVisible then self:closePicker() end
+    if self.cookwarePicker then self.cookwarePicker:setVisible(false); self.cookwarePickerVisible = false end
     -- просто переключаем вкладку и перерисовываем содержимое (не пересоздаём окно)
     self.activeIndex = i
+    self.openingScan, self.openingCollected = nil, nil
     self.lines = buildRenderLines(self.entries, i, self.ingredientSort)
     self.notice = nil
     self.lastValidationAt = nil
     self:syncRows()
     self.content:setYScroll(0)
+    self:refreshCookwareOptions()
+end
+
+function CookItForMePlanUI:refreshCookwareOptions()
+    local entry = self.entries[self.activeIndex]
+    self.cookwareOptions = {}
+    local control = self.cookwareButton
+    if not entry or not entry.plan then control:setVisible(false); return end
+    local player = getSpecificPlayer(self.player)
+    local options = CookItForMe.Cook.planEditor.cookwareOptions(player, entry.plan,
+        self.openingScan, self.openingCollected)
+    local labels = {}
+    for _, option in ipairs(options) do
+        local item = option.item
+        local place
+        if item.getWorldItem and item:getWorldItem() then
+            place = getText("UI_CookItForMe_CookwareGround")
+        elseif item:getContainer() == player:getInventory() then
+            place = getText("UI_CookItForMe_CookwareInventory")
+        else
+            place = getText("UI_CookItForMe_CookwareContainer")
+        end
+        local label = item:getDisplayName() .. " - " .. place
+        labels[label] = (labels[label] or 0) + 1
+        if labels[label] > 1 then label = label .. " #" .. labels[label] end
+        self.cookwareOptions[#self.cookwareOptions + 1] = { item = item, label = label }
+        if item == entry.plan.cookware then control.fullTitle = label end
+    end
+    local selectedAvailable = false
+    for _, option in ipairs(self.cookwareOptions) do
+        if option.item == entry.plan.cookware then selectedAvailable = true break end
+    end
+    if not selectedAvailable then control.fullTitle = entry.plan.cookware:getDisplayName() end
+    control.renderTitle = control.fullTitle .. "  >"
+    control.pickerItem = entry.plan.cookware
+    control:setVisible(true)
+end
+
+function CookItForMePlanUI:onOpenCookwarePicker()
+    if self.cookwarePickerVisible then
+        self:onCloseCookwarePicker()
+        return
+    end
+    ---@type any
+    local list = self.cookwareList
+    for _, button in ipairs(self.cookwarePicker.buttons) do button:setVisible(false) end
+    local px = function(value) return uiPixel(self, value) end
+    local rowH = px(34)
+    for i, option in ipairs(self.cookwareOptions) do
+        ---@type any
+        local button = self.cookwarePicker.buttons[i]
+        if not button then
+            local created = ISButton:new(0, 0, 1, rowH, "", self, CookItForMePlanUI.onChooseCookware)
+            created:initialise(); created:instantiate()
+            list:addChild(created)
+            self.cookwarePicker.buttons[i] = created
+            button = created
+        end
+        button.item = option.item
+        button.pickerItem = option.item
+        button.fullTitle = option.label
+        button.renderTitle = option.label
+        styleButton(button, option.item == self.entries[self.activeIndex].plan.cookware and THEME.accent or THEME.border)
+        button:setX(px(4)); button:setY((i - 1) * rowH + px(4))
+        button:setWidth(self.cookwarePicker.width - px(16)); button:setHeight(rowH - px(2))
+        button:setVisible(true)
+    end
+    list:setHeight(math.max(px(36), #self.cookwareOptions * rowH + px(8)))
+    self.cookwareScroll:setScrollHeight(list.height)
+    self.cookwarePicker:setVisible(true)
+    self.cookwarePickerVisible = true
+end
+
+function CookItForMePlanUI:onCloseCookwarePicker()
+    self.cookwarePicker:setVisible(false)
+    self.cookwarePickerVisible = false
+end
+
+function CookItForMePlanUI:onChooseCookware(button)
+    local entry = self.entries[self.activeIndex]
+    if not entry or not entry.plan or button.item == entry.plan.cookware then
+        self.cookwarePicker:setVisible(false)
+        self.cookwarePickerVisible = false
+        return
+    end
+    local fresh = CookItForMe.Cook.planEditor.chooseCookware(getSpecificPlayer(self.player), entry.plan, button.item)
+    if not fresh then
+        self:refreshCookwareOptions()
+        self.cookwarePicker:setVisible(false)
+        self.cookwarePickerVisible = false
+        return
+    end
+    entry.plan = fresh
+    self.notice = nil
+    self.cookwarePicker:setVisible(false)
+    self.cookwarePickerVisible = false
+    self:refreshIngredients()
+    self:refreshCookwareOptions()
 end
 
 function CookItForMePlanUI:refreshIngredients()
@@ -930,6 +1060,12 @@ function CookItForMePlanUI:syncRows()
                     local fontH = getTextManager():getFontHeight(UIFont.Small)
                     local nameY = cols.compact and px(7) or math.floor((widget.height - fontH) / 2)
                     local hot = widget:isMouseOver() or (data.empty and widget.nameButton:isMouseOver())
+                    if data.prep then
+                        widget:drawRect(0, 0, widget.width, widget.height, .45,
+                            THEME.hover.r, THEME.hover.g, THEME.hover.b)
+                        widget:drawRect(0, 0, px(3), widget.height, .85,
+                            THEME.accent.r, THEME.accent.g, THEME.accent.b)
+                    end
                     if hot then widget:drawRect(0, 0, widget.width, widget.height, .65, THEME.hover.r, THEME.hover.g, THEME.hover.b) end
                     widget:drawRect(0, widget.height - 1, widget.width, 1, .7, THEME.border.r, THEME.border.g, THEME.border.b)
                     if data.empty then
@@ -947,7 +1083,7 @@ function CookItForMePlanUI:syncRows()
                     end
                     if data.tex then widget:drawTextureScaled(data.tex, px(5), nameY + math.floor((fontH - px(24)) / 2),
                         px(24), px(24), 1, 1, 1, 1) end
-                    local frozen = data.item:isFrozen()
+                    local frozen = instanceof(data.item, "Food") and data.item:isFrozen()
                     local unavailable = owner.rowStatus and owner.rowStatus[data.id] == false
                     local nameX = frozen and px(54) or px(34)
                     if frozen then
@@ -962,10 +1098,11 @@ function CookItForMePlanUI:syncRows()
                     widget:drawText(truncateText(data.name, nameRight - nameX, UIFont.Small), nameX, nameY,
                         THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
                     if cols.compact then
-                        local sub = getText("UI_CookItForMe_CompactRow", data.calories and tostring(data.calories) or "?")
+                        local sub = data.prep and "-" or getText("UI_CookItForMe_CompactRow", data.calories and tostring(data.calories) or "?")
                         widget:drawText(truncateText(sub, actionsX - px(42), UIFont.Small), px(34), nameY + fontH,
                             THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
-                        local hunger = getText("UI_CookItForMe_HungerInDish") .. ": " .. (data.hunger and tostring(data.hunger) or "?")
+                        local hunger = getText("UI_CookItForMe_HungerInDish") .. ": "
+                            .. (data.prep and "-" or (data.hunger and tostring(data.hunger) or "?"))
                         widget:drawText(truncateText(hunger, actionsX - px(42), UIFont.Small), px(34), nameY + fontH * 2,
                             THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
                         if badge then widget:drawText(truncateText(badge, actionsX - px(42), UIFont.Small),
@@ -974,9 +1111,9 @@ function CookItForMePlanUI:syncRows()
                     else
                         if badge then widget:drawText(badge, badgeX, nameY,
                             THEME.error.r, THEME.error.g, THEME.error.b, 1, UIFont.Small) end
-                        widget:drawTextRight(data.calories and tostring(data.calories) or "?", cols.nameW + cols.calW - px(9), nameY,
+                        widget:drawTextRight(data.prep and "-" or (data.calories and tostring(data.calories) or "?"), cols.nameW + cols.calW - px(9), nameY,
                             THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
-                        widget:drawTextRight(data.hunger and tostring(data.hunger) or "?", cols.nameW + cols.calW + cols.hungerW - px(9), nameY,
+                        widget:drawTextRight(data.prep and "-" or (data.hunger and tostring(data.hunger) or "?"), cols.nameW + cols.calW + cols.hungerW - px(9), nameY,
                             THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
                     end
                     widget.nameButton.tooltip = data.name .. (frozen and " (" .. getText("UI_CookItForMe_Frozen") .. ")" or "")
@@ -1017,7 +1154,7 @@ function CookItForMePlanUI:onReplaceIngredient(button)
     for _, row in ipairs(entry.plan.rows) do if row.id == button.rowId then target = row break end end
     if not target then return end
     self.pickerTitle = target.item and getText("UI_CookItForMe_ReplaceTitle", target.item:getDisplayName())
-        or getText(target.kind == "food" and "UI_CookItForMe_AddFoodTitle" or "UI_CookItForMe_AddSpiceTitle")
+        or getText(target.kind ~= "spice" and "UI_CookItForMe_AddFoodTitle" or "UI_CookItForMe_AddSpiceTitle")
     if self.picker then self:closePicker() end
     self.pickerRowId = target.id
     self.pickerAdding = target.item == nil
@@ -1075,14 +1212,22 @@ function CookItForMePlanUI:refreshPicker()
         self.entries[self.activeIndex].plan, self.pickerRowId)
     local candidates = {}
     local player = getSpecificPlayer(self.player)
-    local recipe = self.entries[self.activeIndex].plan.recipe
+    local plan = self.entries[self.activeIndex].plan
+    local recipe = plan.recipe
+    local prepCandidate = false
+    for _, row in ipairs(plan.rows) do
+        if row.id == self.pickerRowId then prepCandidate = row.kind == "prep"; break end
+    end
     for index, item in ipairs(self.pickerItems) do
-        local ok, value = pcall(Forecast.contribution, player, recipe, item, "max")
-        local calories = ok and value and math.floor(value + 0.5) or nil
-        ok, value = pcall(Forecast.contribution, player, recipe, item, "hunger")
-        local hunger = ok and value and math.floor(value + 0.5) or nil
+        local calories, hunger = nil, nil
+        if not prepCandidate then
+            local ok, value = pcall(Forecast.contribution, player, recipe, item, "max")
+            calories = ok and value and math.floor(value + 0.5) or nil
+            ok, value = pcall(Forecast.contribution, player, recipe, item, "hunger")
+            hunger = ok and value and math.floor(value + 0.5) or nil
+        end
         candidates[#candidates + 1] = { id = index, item = item, name = item:getDisplayName(),
-            calories = calories, hunger = hunger }
+            calories = calories, hunger = hunger, prep = prepCandidate }
     end
     sortedEntries(candidates, self.pickerSort)
     local query = searchFold(self.pickerSearch:getText())
@@ -1104,6 +1249,7 @@ function CookItForMePlanUI:refreshPicker()
             end
             b.item = item
             b.pickerItem = item
+            b.prepCandidate = candidate.prep
             b.fullTitle = candidate.name
             b.tooltip = b.fullTitle
             b.calories, b.hunger = candidate.calories, candidate.hunger
@@ -1128,6 +1274,10 @@ function CookItForMePlanUI:createChildren()
     local px = function(value) return uiPixel(self, value) end
     local settings = CookItForMe.getSettings(getSpecificPlayer(self.player))
     local y, x = self:titleBarHeight() + px(10), px(COL1)
+    self.dishNav = NIScrollView:new(0, 0, px(172), px(200))
+    self.dishNav:initialise(); self.dishNav:instantiate()
+    self.dishNav:setAutoHideScrollbar(true)
+    self:addChild(self.dishNav)
     self.tabButtons = {}
     for i, entry in ipairs(self.entries) do
         local label = getText(Catalog.DISHES[entry.key].label)
@@ -1144,7 +1294,7 @@ function CookItForMePlanUI:createChildren()
         button.title = ""
         button.entry = entry
         styleDishButton(button)
-        self:addChild(button); self.tabButtons[i] = button
+        self.dishNav:addScrollChild(button); self.tabButtons[i] = button
         x = x + width + px(6)
     end
     y = y + px(34)
@@ -1255,12 +1405,21 @@ function CookItForMePlanUI:createChildren()
             local plan = entry.plan
             local contentX = px(14)
             local detailWidth = panel.width - contentX - px(14)
-            panel:drawText(truncateText(getText(Catalog.DISHES[plan.dishKey].label), detailWidth, UIFont.Medium), contentX, px(20),
+            panel:drawText(truncateText(getText(Catalog.DISHES[plan.dishKey].label), detailWidth, UIFont.Medium), contentX, self.compactHero and px(8) or px(14),
                 THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Medium)
-            local water = plan.dish.needsWater and getText("UI_CookItForMe_PlanWaterNeeded") or getText("UI_CookItForMe_PlanWaterNone")
-            local equipment = plan.cookware:getDisplayName() .. "  /  " .. water
-            equipment = truncateText(equipment, detailWidth, UIFont.Small)
-            panel:drawText(equipment, contentX, px(46), THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
+            local labelY = self.cookwareButton.y + math.floor((self.cookwareButton.height
+                - getTextManager():getFontHeight(UIFont.Small)) / 2)
+            panel:drawText(getText("UI_CookItForMe_CookwareLabel"), contentX, labelY,
+                THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
+            if plan.dish.needsWater and panel.width >= px(750) and not self.compactHero then
+                local water = getText("UI_CookItForMe_PlanWaterNeeded")
+                local waterWidth = getTextManager():MeasureStringX(UIFont.Small, water)
+                local waterX = panel.width - waterWidth - px(180)
+                if waterX >= self.cookwareButton.x + self.cookwareButton.width + px(16) then
+                    panel:drawText(water, waterX, labelY,
+                        THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
+                end
+            end
             local statsH = px(38)
             local statsY = panel.height - statsH - px(8)
             local statW = math.max(px(76), math.floor((panel.width - px(42)) / 2))
@@ -1283,6 +1442,12 @@ function CookItForMePlanUI:createChildren()
         end
     end
     self:addChild(self.summaryCard)
+    self.cookwareButton = ISButton:new(px(76), px(58), px(440), px(30), "", self, CookItForMePlanUI.onOpenCookwarePicker)
+    self.cookwareButton:initialise(); self.cookwareButton:instantiate()
+    self.cookwareButton.tooltip = getText("UI_CookItForMe_CookwareSelect")
+    styleButton(self.cookwareButton, THEME.border)
+    self.summaryCard:addChild(self.cookwareButton)
+    self:refreshCookwareOptions()
 
     self.content = NIScrollView:new(px(8), y + px(60), self.width - px(16), self.height - y - px(118))
     self.content.anchorRight = true; self.content.anchorBottom = true
@@ -1301,7 +1466,19 @@ function CookItForMePlanUI:createChildren()
         local key = entry and entry.key or ""
         local cols = layoutColumns(self, panel.width - px(14))
         for _, line in ipairs(self.lines) do
-            if line.kind == "group" then
+            if line.kind == "prepGroup" then
+                panel:drawRect(px(4), top, panel.width - px(20), groupH - px(4), .8,
+                    THEME.hover.r, THEME.hover.g, THEME.hover.b)
+                panel:drawRect(px(4), top, px(3), groupH - px(4), 1,
+                    THEME.accent.r, THEME.accent.g, THEME.accent.b)
+                panel:drawText(truncateText(line.text, panel.width - px(32), UIFont.Small), px(14), top + px(5),
+                    THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
+                top = top + groupH
+            elseif line.kind == "prepEnd" then
+                panel:drawRect(px(4), top, panel.width - px(20), 1, 1,
+                    THEME.accent.r, THEME.accent.g, THEME.accent.b)
+                top = top + px(12)
+            elseif line.kind == "group" then
                 panel:drawRect(px(4), top, panel.width - px(20), groupH - px(4), 1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
                 panel:drawText(truncateText(line.text, panel.width - px(32), UIFont.Small), px(10), top + px(5),
                     THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
@@ -1408,6 +1585,29 @@ function CookItForMePlanUI:createChildren()
     self.noticeButton = ISButton:new(0, 0, 1, px(24), getText("UI_CookItForMe_Undo"), self, CookItForMePlanUI.onUndoIngredient)
     self.noticeButton:initialise(); self.noticeButton:instantiate(); styleButton(self.noticeButton, THEME.border); self:addChild(self.noticeButton)
 
+    self.cookwarePicker = ISPanel:new(0, 0, px(520), px(220))
+    self.cookwarePicker:initialise(); self.cookwarePicker:instantiate()
+    self.cookwarePicker.prerender = function(panel)
+        drawNeatSurface(panel, "media/ui/NeatUI/DefaultPanel/ContentPanel_BG.png", 0, 0, panel.width, panel.height,
+            1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
+    end
+    self.cookwarePicker.onMouseDownOutside = function(panel)
+        local mouseX, mouseY = panel:getMouseX(), panel:getMouseY()
+        local inside = mouseX >= 0 and mouseX < panel.width and mouseY >= 0 and mouseY < panel.height
+        if not inside and not self.cookwareButton:isMouseOver() then self:onCloseCookwarePicker() end
+        return false
+    end
+    self.cookwarePicker.buttons = {}
+    self.cookwareScroll = NIScrollView:new(px(4), px(4), px(512), px(180))
+    self.cookwareScroll:initialise(); self.cookwareScroll:instantiate()
+    self.cookwareScroll:setAutoHideScrollbar(true)
+    self.cookwareList = ISPanel:new(0, 0, px(500), px(36))
+    self.cookwareList:initialise(); self.cookwareList:instantiate()
+    self.cookwareScroll:addScrollChild(self.cookwareList)
+    self.cookwarePicker:addChild(self.cookwareScroll)
+    self:addChild(self.cookwarePicker)
+    self.cookwarePicker:setVisible(false)
+
 end
 
 function CookItForMePlanUI:prerender()
@@ -1416,7 +1616,8 @@ function CookItForMePlanUI:prerender()
     -- A Lua reload replaces this method but cannot add children to an already
     -- open legacy window.  Let it finish its frame quietly; reopening creates
     -- the new dashboard instead of producing an error every frame.
-    if not self.strategyButtons or not self.radiusButtons or not self.soundButton or not self.keybindButton then return end
+    if not self.strategyButtons or not self.radiusButtons or not self.soundButton
+        or not self.keybindButton or not self.cookwareButton or not self.cookwarePicker then return end
     local px = function(value) return uiPixel(self, value) end
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/MainPanelBG_FlatTop.png", 0, self:titleBarHeight(), self.width,
         self.height - self:titleBarHeight(), 1, THEME.background.r, THEME.background.g, THEME.background.b)
@@ -1427,25 +1628,23 @@ function CookItForMePlanUI:prerender()
     local mainW = math.max(px(220), self.width - mainX - pad)
     local btnY = self.height - self:resizeWidgetHeight() - px(44)
 
-    -- Left navigation is deliberately fixed and scannable: the player sees
-    -- every possible dish and its availability before reading a single line.
+    -- Keep full-size cards and scroll when the expanded catalog exceeds the rail.
     local tabPitch = px(54)
-    if #self.tabButtons > 1 then
-        local availablePitch = math.floor((btnY - railY - px(50) - px(48) - px(16)) / (#self.tabButtons - 1))
-        if availablePitch < tabPitch then tabPitch = availablePitch end
-    end
-    local railH = math.min(math.max(px(80), btnY - railY - px(8)), px(62) + #self.tabButtons * tabPitch)
+    local railH = math.max(px(80), btnY - railY - px(8))
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/CategoryBG.png", railX, railY, railW, railH,
         1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
     local railTitle = getText("UI_CookItForMe_PlanDish", ""):gsub(":%s*$", "")
     railTitle = truncateText(railTitle, railW - px(24), UIFont.Small)
     self:drawText(railTitle, railX + px(12), railY + px(10), THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
+    self.dishNav:setX(railX + px(8)); self.dishNav:setY(railY + px(44))
+    self.dishNav:setWidth(railW - px(16)); self.dishNav:setHeight(math.max(px(24), railH - px(52)))
+    self.dishNav:setScrollHeight(#self.tabButtons * tabPitch)
     for i, button in ipairs(self.tabButtons) do
-        button:setX(railX + px(8))
+        button:setX(0)
         -- The game font's visual descender extends below its draw origin.
         -- Reserve a whole header row before the first navigation card.
-        button:setY(railY + px(50) + (i - 1) * tabPitch)
-        button:setWidth(railW - px(16))
+        button:setY((i - 1) * tabPitch)
+        button:setWidth(railW - px(30))
         button:setHeight(px(48))
     end
 
@@ -1453,9 +1652,35 @@ function CookItForMePlanUI:prerender()
     local compactHeight = self.height < px(500)
     -- The result card no longer has the old status chip and cookware icon,
     -- so reserve that space for the ingredient viewport instead.
-    local heroY, heroH = railY, compactHeight and px(120) or px(132)
+    self.compactHero = compactHeight
+    local heroY, heroH = railY, compactHeight and px(120) or px(160)
     self.summaryCard:setX(mainX); self.summaryCard:setY(heroY)
     self.summaryCard:setWidth(mainW); self.summaryCard:setHeight(heroH)
+    local cookwareLabelWidth = getTextManager():MeasureStringX(UIFont.Small,
+        getText("UI_CookItForMe_CookwareLabel"))
+    local cookwareX = px(14) + cookwareLabelWidth + px(16)
+    self.cookwareButton:setX(cookwareX); self.cookwareButton:setY(compactHeight and px(38) or px(58))
+    local buttonMaxW = mainW - cookwareX - px(22)
+    local selectedEntry = self.entries[self.activeIndex]
+    if selectedEntry and selectedEntry.plan and selectedEntry.plan.dish.needsWater
+        and not compactHeight and mainW >= px(750) then
+        local waterWidth = getTextManager():MeasureStringX(UIFont.Small,
+            getText("UI_CookItForMe_PlanWaterNeeded"))
+        local waterX = mainW - waterWidth - px(180)
+        local availableForButton = waterX - cookwareX - px(16)
+        if availableForButton >= px(120) then
+            buttonMaxW = math.min(buttonMaxW, availableForButton)
+        end
+    end
+    self.cookwareButton:setWidth(math.max(px(120), math.min(px(440), buttonMaxW)))
+    self.cookwareButton:setHeight(compactHeight and px(24) or px(30))
+    local popupW = math.min(px(520), mainW - px(12))
+    local popupH = math.min(px(228), math.max(px(48), #self.cookwareOptions * px(34) + px(24)))
+    self.cookwarePicker:setX(mainX + math.min(cookwareX, mainW - popupW))
+    self.cookwarePicker:setY(heroY + self.cookwareButton.y + self.cookwareButton.height + px(4))
+    self.cookwarePicker:setWidth(popupW); self.cookwarePicker:setHeight(popupH)
+    self.cookwareScroll:setWidth(popupW - px(8)); self.cookwareScroll:setHeight(popupH - px(8))
+    self.cookwareList:setWidth(popupW - px(16))
 
     local settingsY = heroY + heroH + px(10)
     local compactSettings = mainW < px(520)
@@ -1522,6 +1747,11 @@ function CookItForMePlanUI:prerender()
     local busy = session and session.active
     self.busy = busy
     if busy and self.pickerVisible then self:closePicker() end
+    if busy and self.cookwarePickerVisible then
+        self.cookwarePicker:setVisible(false)
+        self.cookwarePickerVisible = false
+    end
+    self.cookwareButton:setEnable(not busy)
     local entry = self.entries[self.activeIndex]
     local toolbarH = math.max(px(28), fontH + px(12))
     local headerH = math.max(px(28), fontH + px(12))
@@ -1539,14 +1769,17 @@ function CookItForMePlanUI:prerender()
     local now = getTimestampMs()
     if entry and entry.plan and (not self.lastValidationAt or now - self.lastValidationAt > 500) then
         self.lastValidationAt = now
-        self.rowStatus = CookItForMe.Cook.planEditor.rowAvailability(getSpecificPlayer(self.player), entry.plan)
-        local ok, key, detail = CookItForMe.Cook.validatePlan(getSpecificPlayer(self.player), entry.plan, self.rowStatus)
+        self.rowStatus = CookItForMe.Cook.planEditor.rowAvailability(getSpecificPlayer(self.player), entry.plan,
+            self.openingScan, self.openingCollected)
+        local ok, key, detail = CookItForMe.Cook.validatePlan(getSpecificPlayer(self.player), entry.plan,
+            self.rowStatus, self.openingScan, self.openingCollected)
         self.planValid = ok
         self.planFail = not ok and (detail and getText("UI_CookItForMe_" .. key, detail)
             or getText("UI_CookItForMe_" .. key)) or nil
     elseif not entry or not entry.plan then
         self.planValid, self.planFail = false, failText(entry and entry.failKey)
     end
+    self.openingScan, self.openingCollected = nil, nil
     self.cookButton:setEnable(not busy and self.planValid == true)
     self.cookButton.tooltip = busy and getText("UI_CookItForMe_Busy") or self.planFail
     local resetW = math.ceil(getTextManager():MeasureStringX(UIFont.Small, getText("UI_CookItForMe_ResetEdits")) + px(40))
@@ -1565,14 +1798,10 @@ function CookItForMePlanUI:prerender()
     self:drawText(truncateText(toolbarText, mainW - reserved - px(20), UIFont.Small), mainX + px(8), tableTop + px(5),
         THEME.text.r, THEME.text.g, THEME.text.b, 1, UIFont.Small)
     self.title = getText(busy and "UI_CookItForMe_Busy" or "UI_CookItForMe_PlanTitle")
-    local tab = self.tabButtons[self.activeIndex]
-    if tab then
-        self:drawRectBorder(tab.x - 2, tab.y - 2, tab.width + 4, tab.height + 4, 1,
-            THEME.accent.r, THEME.accent.g, THEME.accent.b)
-    end
+    -- Active card is already highlighted by styleDishButton inside the scroll rail.
 end
 
-function CookItForMePlanUI:new(player, entries, activeIndex)
+function CookItForMePlanUI:new(player, entries, activeIndex, openingScan, openingCollections)
     -- активный таб по умолчанию — первый доступный
     if not activeIndex or not entries[activeIndex] then
         activeIndex = 1
@@ -1617,6 +1846,11 @@ function CookItForMePlanUI:new(player, entries, activeIndex)
     o.player = player
     o.entries = entries
     o.activeIndex = activeIndex
+    o.openingScan = openingScan
+    if openingCollections then
+        local dish = Catalog.DISHES[entries[activeIndex].key]
+        o.openingCollected = dish.allowCookedIngredients and openingCollections.cooked or openingCollections.regular
+    end
     o.lines = lines
     o.ingredientSort = ingredientSort
     o.pickerSort = pickerSort
