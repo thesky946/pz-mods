@@ -5,6 +5,7 @@ local tests = {
     "test_scenario_registry.lua",
     "test_forecast.lua",
     "test_foodlogic.lua",
+    "test_plan_edit.lua",
     "test_cook.lua",
     "test_lifecycle.lua",
     "test_session.lua",

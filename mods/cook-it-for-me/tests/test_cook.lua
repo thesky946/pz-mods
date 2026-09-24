@@ -78,7 +78,6 @@ local failures = {
     { "NoSink", function(e) e.scan.sink = nil end },
     { "NoWater", function(e) e.dry = true end },
     { "NoCookware", function(e) e.noRecipe = true end },
-    { "NotEnough", function(e) e.collected.foods = {} end },
 }
 for _, case in ipairs(failures) do
     local e = Env.new()
@@ -87,6 +86,14 @@ for _, case in ipairs(failures) do
     eq(plan, nil)
     eq(failure, case[1])
 end
+local emptyFood = Env.new()
+emptyFood.collected.foods = {}
+local emptyPlan = assert(emptyFood.cook.plan(emptyFood.player, "Soup"))
+assert(#emptyPlan.picked.items == 0 and #emptyPlan.rows >= 6,
+    "a plan without available food remains open for filling empty slots")
+local started, emptyReason = emptyFood.cook.start(emptyFood.player, "Soup", emptyPlan)
+assert(started == false and emptyReason == "NotEnough" and #emptyFood.queue == 0,
+    "an unfilled plan cannot begin cooking")
 
 local e = Env.new()
 e.forecastError = true

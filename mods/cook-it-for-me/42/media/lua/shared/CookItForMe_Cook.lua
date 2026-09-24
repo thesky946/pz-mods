@@ -12,6 +12,8 @@ Cook.DISHES = Catalog.DISHES
 Cook.availableDishes = Catalog.availableDishes
 Cook.findCookware = Catalog.findCookware
 Cook.plan = Planner.plan
+Cook.planEditor = Planner
+Cook.validatePlan = Planner.validate
 
 function Cook.isMultiplayer()
     return (type(isClient) == "function" and isClient())
@@ -50,11 +52,12 @@ function Cook.start(player, dishKey, plan)
             return
         end
     end
-    local ok, valid, key = pcall(Planner.validate, player, plan)
+    local ok, valid, key, detail = pcall(Planner.validate, player, plan)
     if not ok or not valid then
         key = ok and key or "ActionFailed"
         CookItForMe.diagnostic("start rejected: " .. tostring(key) .. " " .. tostring(valid))
-        player:Say(getText("UI_CookItForMe_" .. key))
+        player:Say(detail and getText("UI_CookItForMe_" .. key, detail)
+            or getText("UI_CookItForMe_" .. key))
         return false, key
     end
     Cook.session = Session.new(player, plan)

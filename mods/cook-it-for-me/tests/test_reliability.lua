@@ -50,7 +50,7 @@ test("preparation-only plan refuses missing ingredients before actions", functio
     local plan = assert(e.cook.plan(e.player, "Soup"))
     e.source:Remove(e.food)
     local started, failure = e.cook.start(e.player, "Soup", plan)
-    assert(started == false and failure == "PlanChanged")
+    assert(started == false and failure == "SelectedUnavailable")
     assert(#e.queue == 0 and #e.pot.extra == 0)
 end)
 

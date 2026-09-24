@@ -26,19 +26,21 @@ Base.__index = Base
 function Base:derive() local c = {}; c.__index = c; return setmetatable(c, { __index = self }) end
 function Base:new(x, y, w, h, text, target, callback)
     return setmetatable({ x = x, y = y, width = w, height = h, children = {}, options = {},
-        text = text, target = target, callback = callback, anchorTop = true,
+        text = text, title = text, target = target, callback = callback, anchorTop = true,
         backgroundColor = { a = 1 }, borderColor = { a = 1 }, enable = true }, self)
 end
 for _, name in ipairs({ "initialise", "instantiate", "setResizable", "enableAcceptColor", "enableCancelColor",
     "setVisible", "removeFromUIManager", "addScrollBars", "setStencilRect", "clearStencilRect", "drawRect", "drawRectBorder", "drawTextureScaled", "prerender", "createChildren" }) do
     Base[name] = function() end
 end
-function Base:addChild(child) self.children[#self.children + 1] = child end
+function Base:addChild(child) child.parent = self; self.children[#self.children + 1] = child end
+function Base:setResizable(value) self.resizable = value end
 function Base:instantiate()
     self.engineAnchorTop, self.engineAnchorBottom = self.anchorTop, self.anchorBottom
     self.javaObject = { setConsumeMouseEvents = function(javaObject, value) javaObject.consumesMouseEvents = value end }
 end
-function Base:addToUIManager() self:createChildren() end
+function Base:addToUIManager() self.onManager = true; self:createChildren() end
+function Base:removeFromUIManager() self.onManager = false end
 function Base:titleBarHeight() return math.max(16, fontHeight + 1) end
 function Base:resizeWidgetHeight() return (fontHeight + 6) / 2 + 2 end
 function Base:setX(value) self.x = value end
@@ -46,6 +48,11 @@ function Base:setY(value) self.y = value end
 function Base:setWidth(value) self.width = value end
 function Base:setHeight(value) self.height = value end
 function Base:setYScroll(value) self.scroll = value end
+function Base:setVisible(value) self.visible = value end
+function Base:bringToTop() end
+function Base:setAlwaysOnTop(value) self.alwaysOnTop = value end
+function Base:setText(value) self.text = value end
+function Base:getText() return self.text end
 function Base:getYScroll() return self.scroll or 0 end
 function Base:setScrollHeight(value) self.scrollHeight = value end
 function Base:getScrollHeight() return self.scrollHeight or 0 end
@@ -64,9 +71,12 @@ function Base:getAbsoluteX() return self.x end
 function Base:getAbsoluteY() return self.y end
 function Base:addScrollChild(child) self:addChild(child) end
 function Base:drawText(text, x) assert(x + #text * 6 <= self.width - 14, "wrapped content exceeds viewport") end
-for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBox", "ISSpinBox", "ISTickBox", "ISPanel" }) do
+for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBox", "ISSpinBox", "ISTickBox", "ISPanel", "ISTextEntryBox" }) do
     _G[name] = Base:derive()
     package.loaded["ISUI/" .. name] = true
+end
+function ISTextEntryBox:new(text, x, y, width, height)
+    return Base.new(self, x, y, width, height, text)
 end
 ISModalDialog = {}
 function ISModalDialog.CalcSize(width, height) return width, height end
@@ -92,6 +102,7 @@ ISButton.drawText = false
 package.loaded["neatui_framework/scrollview/niscrollbar"] = true
 package.loaded["neatui_framework/scrollview/niscrollview"] = Base:derive()
 package.loaded["neatui_framework/neattool/neattool_truncatetext"] = true
+NeatTool = { truncateText = function(value, width) return value:sub(1, math.floor(width / 6)) end }
 UIFont = { Small = 1 }
 getSpecificPlayer = function() return e.player end
 getCore = function() return {
@@ -103,12 +114,16 @@ getTextManager = function() return { MeasureStringX = function(_, _, text) retur
 local settings = CookItForMe.getSettings(e.player)
 assert(settings.finishCooking, "legacy settings enable finishing the dish by default")
 settings.panelX, settings.panelY, settings.panelW, settings.panelH = nil, nil, nil, nil
+settings.pickerW, settings.pickerH = nil, nil
 screenW, screenH, fontHeight = 3840, 2160, 36
 require "CookItForMe_PlanUI"
 local entries = { { key = "Soup", failKey = "NoStove" }, { key = "Stew", failKey = "NoStove" },
     { key = "Stir fry", failKey = "NoStove" }, { key = "Roasted Vegetables", failKey = "NoStove" } }
 local panel = CookItForMePlanUI:new(0, entries, 2)
 panel:prerender()
+assert(panel.ingredientSort.key == "hunger" and panel.ingredientSort.descending
+    and panel.pickerSort.key == "hunger" and panel.pickerSort.descending,
+    "new players see highest hunger relief first in both tables")
 assert(panel.width == 2080 and panel.height == 1280,
     "a fresh window scales with the effective PZ font size")
 assert(panel.keybindButton.fullTitle == "F8"
@@ -269,15 +284,405 @@ panel.cookButton:prerender()
 assert(hasColor(buttonFills, 0xB85C55), "unavailable Cook action has an error fill")
 buttonFills = {}
 panel.cookButton:setEnable(true)
+local cookTextColor
+panel.cookButton.drawTextCentre = function(_, title, x, y, r, g, b)
+    cookTextColor = { r, g, b }
+end
 panel.cookButton:prerender()
 assert(hasColor(buttonFills, 0x6FA36F), "available Cook action has a success fill")
-local frozenMarks = {}
-panel.lines = { { kind = "item", text = "Frozen ingredient", frozen = true } }
-panel.details.drawRect = function(_, x, y, width, height, alpha, r, g, b)
-    if width == 3 then frozenMarks[#frozenMarks + 1] = { r, g, b } end
-end
+assert(cookTextColor and hasColor({ cookTextColor }, 0xF0ECE4),
+    "available Cook action keeps its light label on the green button")
+local plan = assert(e.cook.plan(e.player, "Soup"))
+panel.entries[2].plan = plan
+panel:refreshIngredients()
 panel.details:prerender()
-assert(hasColor(frozenMarks, 0x7098B8), "frozen ingredients have a blue left marker")
+local emptyRow = panel.rowWidgets["Stew:" .. plan.rows[2].id]
+assert(emptyRow and emptyRow.data.empty and emptyRow.nameButton.rowId == plan.rows[2].id,
+    "unfilled recipe capacity appears as clickable rows with stable plan IDs")
+emptyRow:prerender()
+assert(emptyRow.nameButton.enable and emptyRow.replaceButton.visible == false
+    and emptyRow.removeButton.visible == false,
+    "an empty slot has one clear add action and no removal controls")
+emptyRow.nameButton.callback(panel, emptyRow.nameButton)
+assert(panel.pickerVisible and panel.pickerRowId == plan.rows[2].id
+    and panel.pickerTitle == getText("UI_CookItForMe_AddFoodTitle"),
+    "clicking an empty main slot opens the existing compatible-item picker")
+assert(panel.picker.onManager and panel.picker.parent == nil and panel.picker.moveWithMouse
+    and panel.picker.alwaysOnTop and panel.picker.keepOnScreen,
+    "the picker is a movable top-level window above the ingredient table")
+assert(panel.pickerScroll.y + panel.pickerScroll.height < panel.pickerCancel.y
+    and panel.pickerCancel.y + panel.pickerCancel.height < panel.picker.height,
+    "search results and Close fit inside the picker")
+local pickerX, pickerY = panel.picker.x + 15, panel.picker.y + 10
+panel.picker:setX(pickerX); panel.picker:setY(pickerY)
+panel:prerender()
+assert(panel.picker.x == pickerX and panel.picker.y == pickerY,
+    "the main window does not snap a dragged picker back to its original position")
+assert(panel.pickerEmpty and panel.pickerEmptyText == "UI_CookItForMe_NoAdditions",
+    "an unfillable slot explains why no item can be added")
+local openPicker = panel.picker
+openPicker:close()
+assert(not openPicker.onManager and not panel.pickerVisible,
+    "the picker title-bar close button removes its independent window")
+local foodRow = panel.rowWidgets["Stew:1"]
+assert(foodRow and foodRow.removeButton.rowId == plan.rows[1].id,
+    "ingredient actions keep the plan row ID")
+foodRow:prerender()
+assert(foodRow.replaceButton.width > 0 and foodRow.removeButton.x > foodRow.replaceButton.x,
+    "ingredient controls occupy stable columns")
+assert(foodRow.removeButton.width >= foodRow.removeButton.height,
+    "the remove control has a comfortable square click target")
+local iconParts = 0
+foodRow.replaceButton.drawRect = function(b, x, y, width, height, alpha)
+    if width <= b.width * .6 and height <= b.height * .25 and alpha >= .5 then
+        assert(x >= 0 and y >= 0 and x + width <= b.width and y + height <= b.height,
+            "swap icon stays inside its button")
+        iconParts = iconParts + 1
+    end
+end
+foodRow.replaceButton.drawTextCentre = function() error("Replace must render an icon instead of a text label") end
+foodRow.replaceButton:prerender()
+assert(iconParts >= 6 and foodRow.replaceButton.tooltip == getText("UI_CookItForMe_ReplaceTitle", foodRow.data.name),
+    "the swap icon uses visible filled shapes and keeps its localized tooltip")
+foodRow.replaceButton.drawRect = nil
+foodRow.replaceButton.drawTextCentre = nil
+local metrics = {}
+foodRow.drawTextRight = function(_, value) metrics[#metrics + 1] = value end
+local savedRowWidth = foodRow.width
+foodRow:setWidth(2200)
+foodRow:prerender()
+assert(foodRow.removeButton.text == "x" and #metrics == 2
+    and metrics[1] == tostring(foodRow.data.calories) and metrics[2] == "10",
+    "the row shows calorie and hunger contributions from the selected ingredient")
+local headers = {}
+panel.tableHeader:setWidth(2200)
+panel.tableHeader.drawText = function(_, value) headers[#headers + 1] = value end
+panel.tableHeader.drawTextRight = function(_, value) headers[#headers + 1] = value end
+panel.tableHeader:prerender()
+assert(#headers == 4 and headers[1] == "UI_CookItForMe_Ingredient"
+    and headers[2] == "UI_CookItForMe_CalInDish" and headers[3] == "UI_CookItForMe_HungerInDish"
+    and headers[4] == "UI_CookItForMe_Actions",
+    "the ingredient table labels both nutrition contributions")
+local originalRows = plan.rows
+local alpha = Env.item("Base.Carrot", 10)
+alpha.hunger = -0.05
+alpha.getDisplayName = function() return "Alpha" end
+local zulu = Env.item("Base.Carrot", 100)
+zulu.hunger = -0.3
+zulu.getDisplayName = function() return "Zulu" end
+local spiceA = Env.item("Base.Salt", 0)
+spiceA.spice = true
+spiceA.getDisplayName = function() return "A spice" end
+local spiceZ = Env.item("Base.Salt", 0)
+spiceZ.spice = true
+spiceZ.getDisplayName = function() return "Z spice" end
+plan.rows = {
+    { id = 102, kind = "food", item = zulu }, { id = 103, kind = "food" },
+    { id = 101, kind = "food", item = alpha },
+    { id = 202, kind = "spice", item = spiceZ }, { id = 201, kind = "spice", item = spiceA },
+}
+panel:refreshIngredients()
+assert(panel.lines[2].id == 102 and panel.lines[3].id == 101 and panel.lines[4].id == 103,
+    "new plans show highest hunger relief first and empty slots last: "
+        .. tostring(panel.lines[2].id) .. "/" .. tostring(panel.lines[3].id) .. "/" .. tostring(panel.lines[4].id))
+local sortButtons = panel.ingredientSortButtons
+assert(sortButtons and sortButtons.name and sortButtons.calories and sortButtons.hunger,
+    "all three plan table headings are clickable")
+panel.tableHeader:prerender()
+assert(sortButtons.name.width > 0 and sortButtons.calories.x >= sortButtons.name.width
+    and sortButtons.hunger.x >= sortButtons.calories.x + sortButtons.calories.width,
+    "plan sort hit areas follow their visible header columns")
+sortButtons.name.callback(panel, sortButtons.name)
+assert(settings.ingredientSortKey == "name" and not settings.ingredientSortDescending,
+    "plan sorting is saved per player")
+assert(panel.lines[2].id == 101 and panel.lines[3].id == 102 and panel.lines[4].id == 103
+    and panel.lines[5].kind == "group" and panel.lines[6].id == 201,
+    "first name click sorts alphabetically inside each group and leaves empty slots last")
+sortButtons.name.callback(panel, sortButtons.name)
+assert(panel.lines[2].id == 102 and panel.lines[3].id == 101 and panel.lines[4].id == 103,
+    "a second click reverses plan name sorting")
+sortButtons.calories.callback(panel, sortButtons.calories)
+assert(panel.lines[2].id == 102 and panel.lines[3].id == 101,
+    "first calorie click shows the largest contribution first")
+assert(panel.rowWidgets["Stew:102"].data.id == 102 and panel.rowWidgets["Stew:102"].removeButton.rowId == 102,
+    "sorting does not change the row targeted by ingredient actions")
+sortButtons.calories.callback(panel, sortButtons.calories)
+assert(panel.lines[2].id == 101 and panel.lines[3].id == 102,
+    "a second calorie click shows the smallest contribution first")
+sortButtons.hunger.callback(panel, sortButtons.hunger)
+assert(panel.lines[2].id == 102 and panel.lines[3].id == 101,
+    "hunger sort uses the contribution rather than whole-item calories")
+plan.rows = originalRows
+panel.ingredientSort = { key = "hunger", descending = true }
+settings.ingredientSortKey, settings.ingredientSortDescending = nil, nil
+panel:refreshIngredients()
+foodRow:setWidth(savedRowWidth)
+foodRow:prerender()
+assert(foodRow.removeButton.x + foodRow.removeButton.width <= foodRow.width,
+    "actions stay inside a compact row")
+foodRow:setWidth(480)
+foodRow:prerender()
+local actionLeft = foodRow.replaceButton.x
+local compactLines = {}
+foodRow.drawText = function(_, value, x, y)
+    assert(x + #value * 6 < actionLeft, "compact row text stays clear of its actions")
+    compactLines[y] = true
+end
+local savedDetailsWidth = panel.details.width
+panel.details:setWidth(480 + 28)
+panel.details:prerender()
+foodRow:prerender()
+local lineCount = 0
+for _ in pairs(compactLines) do lineCount = lineCount + 1 end
+assert(foodRow.height >= fontHeight * 3 + 14 and lineCount >= 3,
+    "compact rows make room for name, calories and hunger without hiding a metric")
+foodRow.drawText = nil
+panel.details:setWidth(savedDetailsWidth)
+panel.details:prerender()
+foodRow:setWidth(savedRowWidth)
+local ingredientHeadingDrawn = false
+local originalDrawText = panel.drawText
+panel.drawText = function(self, value, x, y, ...)
+    if value == "UI_CookItForMe_PlanIngredients" then ingredientHeadingDrawn = true end
+    return originalDrawText(self, value, x, y, ...)
+end
+fontHeight = 36
+panel:prerender()
+assert(not ingredientHeadingDrawn, "the table needs no redundant Ingredients heading")
+local plainHeaderY = panel.tableHeader.y
+panel.notice = { text = "temporary notice" }
+panel:prerender()
+assert(panel.tableHeader.y == plainHeaderY,
+    "showing a notice does not move the table")
+panel.notice = nil
+panel:prerender()
+assert(panel.tableHeader.y == plainHeaderY,
+    "hiding a notice does not move the table")
+panel.details:prerender()
+foodRow:prerender()
+assert(foodRow.height >= fontHeight + 10 and foodRow.replaceButton.height >= fontHeight + 6,
+    "rows and actions grow with the current game font")
+fontHeight = 18
+panel.drawText = originalDrawText
+local originalGetText = getText
+getText = function(key, ...)
+    if key == "UI_CookItForMe_Unavailable" then return "unavailable" end
+    return originalGetText(key, ...)
+end
+e.food.frozen = true
+panel:refreshIngredients()
+foodRow:setWidth(2200)
+local states = {}
+foodRow.drawText = function(_, value) states[#states + 1] = value end
+local originalGetTexture = getTexture
+getTexture = function(path)
+    if path == "media/ui/icon_frozen.png" then return "frozen texture" end
+    return originalGetTexture and originalGetTexture(path) or nil
+end
+local snowflakes = {}
+foodRow.drawTextureScaled = function(_, texture, x, y, width, height, alpha, red, green, blue)
+    if texture == "frozen texture" then snowflakes[#snowflakes + 1] = { x, y, width, height, red, green, blue } end
+end
+panel.rowStatus = { [plan.rows[1].id] = true }
+foodRow:prerender()
+assert(#snowflakes == 1 and snowflakes[1][1] > 0 and snowflakes[1][5] < snowflakes[1][7],
+    "frozen food has a blue snowflake beside its name")
+assert(not table.concat(states, " "):find("available", 1, true),
+    "available food has no redundant status label")
+assert(foodRow.nameButton.tooltip:find("UI_CookItForMe_Frozen", 1, true),
+    "the snowflake meaning is available in the name tooltip")
+local previousDrawText, previousDrawTexture = foodRow.drawText, foodRow.drawTextureScaled
+local iconPositions, nameY = {}, nil
+foodRow.data.tex = "item texture"
+foodRow.drawText = function(_, value, x, y)
+    if value == foodRow.data.name then nameY = y end
+end
+foodRow.drawTextureScaled = function(_, texture, x, y, width, height)
+    iconPositions[texture] = y + height / 2
+end
+fontHeight = 36
+panel.details:prerender()
+foodRow:setWidth(2200)
+foodRow:prerender()
+local nameCenter = nameY and nameY + fontHeight / 2
+assert(nameCenter and math.abs(iconPositions["item texture"] - nameCenter) <= 1
+    and math.abs(iconPositions["frozen texture"] - nameCenter) <= 1,
+    "item icon, snowflake and ingredient name share one vertical centre")
+assert(math.abs(foodRow.replaceButton.y + foodRow.replaceButton.height / 2 - foodRow.height / 2) <= 1
+    and math.abs(foodRow.removeButton.y + foodRow.removeButton.height / 2 - foodRow.height / 2) <= 1,
+    "both ingredient actions remain vertically centred as row height changes")
+fontHeight = 18
+foodRow.data.tex = nil
+foodRow.drawText, foodRow.drawTextureScaled = previousDrawText, previousDrawTexture
+panel.details:prerender()
+states = {}
+panel.rowStatus[plan.rows[1].id] = false
+foodRow:prerender()
+assert(table.concat(states, " "):find("unavailable", 1, true),
+    "a planned item that disappears still has a visible warning")
+e.food.frozen = false
+snowflakes = {}
+foodRow:prerender()
+assert(#snowflakes == 0, "the snowflake disappears when the item thaws without rebuilding the plan")
+getTexture = originalGetTexture
+getText = originalGetText
+panel:refreshIngredients()
+panel.details:prerender()
+foodRow:prerender()
+panel:onReplaceIngredient(foodRow.replaceButton)
+assert(panel.pickerVisible and panel.pickerEmpty and panel.pickerRowId == plan.rows[1].id,
+    "replacement picker explains that no alternatives exist")
+assert(panel.picker.width == 860 and panel.picker.height == 560
+    and settings.pickerW == nil and settings.pickerH == nil,
+    "the first picker opens larger without treating its default as a saved user size")
+panel:closePicker()
+assert(settings.pickerW == nil and settings.pickerH == nil,
+    "closing an untouched picker does not mark the default size as a user preference")
+panel:onReplaceIngredient(foodRow.replaceButton)
+assert(panel.pickerSearch.height == 24 and panel.pickerCancel.height == 24,
+    "search and Close use compact single-line heights: " .. tostring(panel.pickerSearch.height)
+        .. "/" .. tostring(panel.pickerCancel.height) .. " font=" .. tostring(fontHeight))
+assert(panel.picker.resizable and panel.picker.minimumWidth and panel.picker.minimumHeight,
+    "the replacement picker can be resized with a bounded minimum size")
+panel.picker:setWidth(panel.picker.width + 180)
+panel.picker:setHeight(panel.picker.height + 120)
+panel.picker:prerender()
+assert(panel.pickerSearch.width == panel.pickerScroll.width
+    and panel.pickerScroll.width == panel.picker.width - panel.pickerScroll.x * 2
+    and panel.pickerCancel.y + panel.pickerCancel.height < panel.picker.height,
+    "resizing keeps search, results, and Close inside the picker")
+assert(panel.pickerCancel.x + panel.pickerCancel.width == panel.picker.width - panel.pickerScroll.x
+    and panel.pickerCancel.width >= getTextManager():MeasureStringX(UIFont.Small, panel.pickerCancel.fullTitle) + fontHeight,
+    "Close is wide enough for its label and stays aligned to the picker right edge")
+assert(panel.pickerHeader and panel.pickerFooter
+    and panel.pickerScroll.y >= panel.pickerHeader.y + panel.pickerHeader.height
+    and panel.pickerScroll.y + panel.pickerScroll.height < panel.pickerFooter.y
+    and panel.pickerCancel.y >= panel.pickerFooter.y,
+    "picker table scrolls between a fixed header and a separate Close footer")
+assert(panel.pickerCancel.title == "" and panel.pickerCancel.fullTitle == "UI_CookItForMe_SettingsClose",
+    "Close text is drawn once by the themed button")
+panel.picker:setWidth(panel.picker.minimumWidth)
+panel.picker:setHeight(panel.picker.minimumHeight)
+panel.picker:prerender()
+assert(panel.pickerScroll.height > 0
+    and panel.pickerScroll.y + panel.pickerScroll.height < panel.pickerFooter.y,
+    "the scrollable table does not cover Close at the minimum window size")
+panel.picker:setWidth(760)
+panel.picker:setHeight(520)
+panel.picker:prerender()
+panel:closePicker()
+assert(settings.pickerW == 760 and settings.pickerH == 520,
+    "closing a manually resized picker saves its last dimensions")
+panel:onRemoveIngredient(foodRow.removeButton)
+assert(#plan.picked.items == 0 and panel.notice and panel.notice.removal.item == e.food,
+    "remove action targets the displayed physical item")
+assert(plan.rows[1].item == nil and panel.rowWidgets["Stew:1"].data.empty,
+    "removing a visible item leaves a clickable slot at the same row ID")
+panel:prerender()
+assert(panel.resetButton.title == "" and panel.noticeButton.title == ""
+    and panel.cookButton.title == "" and panel.closeButton.title == "",
+    "themed buttons suppress the vanilla title so labels are drawn only once")
+assert(foodRow.removeButton.title == "", "the remove action suppresses the vanilla x glyph")
+assert(panel.cookButton.enable == false and panel.cookButton.tooltip == "UI_CookItForMe_NotEnough",
+    "empty edited plan disables Cook with a reason")
+panel:onUndoIngredient()
+assert(#plan.picked.items == 1 and not panel.notice, "undo restores the selected row")
+panel:prerender()
+assert(panel.resetButton.visible == false, "Reset edits disappears after undo restores the automatic plan")
+local alternative = e.source:AddItem(Env.item("Base.Carrot", 20))
+alternative.getDisplayName = function() return string.char(0xD0,0x9C,0xD0,0x9E,0xD0,0xA0,0xD0,0x9A,0xD0,0x9E,0xD0,0x92,0xD0,0xAC) end
+e.collected.foods[#e.collected.foods + 1] = alternative
+local apple = e.source:AddItem(Env.item("Base.Carrot", 5))
+apple.hunger = -0.2
+apple.getDisplayName = function() return "Apple" end
+e.collected.foods[#e.collected.foods + 1] = apple
+local banana = e.source:AddItem(Env.item("Base.Carrot", 80))
+banana.hunger = -0.05
+banana.getDisplayName = function() return "Banana" end
+e.collected.foods[#e.collected.foods + 1] = banana
+panel:onReplaceIngredient(foodRow.replaceButton)
+assert(panel.picker.width == 760 and panel.picker.height == 520,
+    "the next picker restores the last user-sized dimensions")
+assert(panel.pickerButtons[1].item == apple,
+    "an untouched replacement table shows the strongest hunger relief first")
+local pickerSort = panel.picker.sortButtons
+assert(pickerSort and pickerSort.name and pickerSort.calories and pickerSort.hunger,
+    "all three alternative table headings are clickable")
+panel.pickerHeader:prerender()
+assert(pickerSort.name.width > 0 and pickerSort.calories.x >= pickerSort.name.width
+    and pickerSort.hunger.x >= pickerSort.calories.x + pickerSort.calories.width,
+    "picker sort hit areas follow their visible header columns")
+pickerSort.name.callback(panel, pickerSort.name)
+assert(panel.pickerButtons[1].item == apple, "first name click sorts alternatives alphabetically")
+pickerSort.name.callback(panel, pickerSort.name)
+assert(panel.pickerButtons[1].item ~= apple, "second name click reverses alphabetical sorting")
+pickerSort.calories.callback(panel, pickerSort.calories)
+assert(panel.pickerButtons[1].item == banana, "alternatives sort by calorie contribution")
+pickerSort.calories.callback(panel, pickerSort.calories)
+assert(panel.pickerButtons[1].item == apple, "a second calorie click reverses alternative ordering")
+pickerSort.hunger.callback(panel, pickerSort.hunger)
+assert(settings.pickerSortKey == "hunger" and settings.pickerSortDescending,
+    "replacement sorting is saved separately from plan sorting")
+assert(panel.pickerButtons[1].item == apple, "alternatives sort by hunger contribution")
+panel:closePicker()
+panel:onReplaceIngredient(foodRow.replaceButton)
+assert(panel.pickerSort.key == "hunger" and panel.pickerSort.descending
+    and panel.pickerButtons[1].item == apple,
+    "reopened replacement table keeps the chosen sorting")
+panel.pickerSearch:setText(string.char(0xD0,0xBC,0xD0,0xBE,0xD1,0x80,0xD0,0xBA,0xD0,0xBE,0xD0,0xB2,0xD1,0x8C))
+panel.pickerSearch.onTextChange()
+assert(not panel.pickerEmpty and panel.pickerButtons[1].item == alternative,
+    "search matches Cyrillic names without case sensitivity")
+assert(panel.pickerButtons[1].parent == panel.pickerList and panel.pickerButtons[1].visible,
+    "available alternatives are visible buttons inside the picker list")
+local option = panel.pickerButtons[1]
+assert(option.calories ~= nil and option.hunger ~= nil,
+    "picker calculates each alternative's calorie and hunger contribution")
+local rightText = {}
+local nameLeft
+option.drawTextRight = function(_, value) rightText[#rightText + 1] = value end
+option.drawTextCentre = function(_, value, x)
+    if value == option.fullTitle then
+        nameLeft = x - getTextManager():MeasureStringX(UIFont.Small, value) / 2
+    end
+end
+option:prerender()
+assert(#rightText == 2 and rightText[1] == tostring(option.calories)
+    and rightText[2] == tostring(option.hunger),
+    "picker renders separate right-aligned calorie and hunger cells")
+assert(nameLeft == 8, "candidate names start at the left edge of the name column")
+panel.pickerButtons[1].callback(panel, panel.pickerButtons[1])
+assert(plan.rows[1].item == alternative and not panel.pickerVisible,
+    "picker changes the displayed plan row")
+e.collected.foods = { e.food, alternative }
+panel:onRemoveIngredient(foodRow.removeButton)
+panel:onResetIngredients()
+assert(#plan.picked.items == 2 and not plan.edited, "reset restores automatic selection from current food")
+panel:onRemoveIngredient(panel.rowWidgets["Stew:1"].removeButton)
+local editedPlan = plan
+panel:rebuild()
+panel = CookItForMe.planWindow
+assert(panel.entries[2].plan == editedPlan and editedPlan.edited and #editedPlan.picked.items == 1,
+    "settings rebuild keeps the manually edited composition until the window closes")
+e.recipe.getUntranslatedName = function() return "Stew" end
+panel:onStrategyButton(panel.strategyButtons[2])
+panel = CookItForMe.planWindow
+local strategyPlan = assert(panel.entries[2].plan)
+assert(strategyPlan ~= editedPlan and strategyPlan.direction == "min"
+    and not strategyPlan.edited and #strategyPlan.picked.items == 2
+    and strategyPlan.picked.items[1] == alternative,
+    "changing strategy discards manual edits and rebuilds the whole ingredient plan")
+panel:prerender()
+assert(panel.resetButton.visible == false,
+    "a fresh strategy plan does not offer Reset edits")
+panel.ingredientSortButtons.calories.callback(panel, panel.ingredientSortButtons.calories)
+assert(settings.ingredientSortKey == "calories" and settings.ingredientSortDescending,
+    "plan calorie order is saved before reopening")
+panel:rebuild()
+panel = CookItForMe.planWindow
+assert(panel.ingredientSort.key == "calories" and panel.ingredientSort.descending
+    and panel.pickerSort.key == "hunger" and panel.pickerSort.descending,
+    "both saved table sorts survive reopening the plan window")
 local canceledCooking = false
 local originalCancel = CookItForMe.Cook.cancel
 CookItForMe.Cook.cancel = function() canceledCooking = true end
@@ -287,5 +692,5 @@ assert(CookItForMe.planWindow == nil and not canceledCooking,
     "closing the plan clears the window without cancelling an active cooking session")
 local staleWindow = setmetatable({ isCollapsed = false }, CookItForMePlanUI)
 assert(pcall(function() staleWindow:prerender() end), "hot-reloaded renderer must tolerate an old open window")
-for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBox", "ISSpinBox", "ISTickBox", "ISPanel" }) do package.loaded["ISUI/" .. name] = nil end
+for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBox", "ISSpinBox", "ISTickBox", "ISPanel", "ISTextEntryBox" }) do package.loaded["ISUI/" .. name] = nil end
 print("UI STATE AND LAYOUT TESTS PASSED")

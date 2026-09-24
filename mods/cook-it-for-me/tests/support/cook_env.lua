@@ -39,6 +39,7 @@ function Env.item(fullType, calories)
     function item:getFullType() return self.fullType end
     function item:getType() return self.fullType:match("%.(.+)") end
     function item:getDisplayName() return self.fullType end
+    function item:getTexture() return nil end
     function item:getName() return self.fullType end
     function item:getCalories() return self.calories end
     function item:getBaseHunger() return self.hunger end
