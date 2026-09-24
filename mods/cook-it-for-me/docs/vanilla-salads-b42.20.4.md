@@ -2,7 +2,7 @@
 
 Источник версии: `C:/Users/User/Zomboid/console.txt:59` (`version=42.20.4`). Исходники игры: `D:/steam/steamapps/common/ProjectZomboid/`.
 
-| Evolved recipe | Основа | Результат | Лимит | Имя рецепта |
+| Evolved recipe / `getUntranslatedName()` | Основа | Результат | Лимит | Поле `Name` в скрипте |
 | --- | --- | --- | ---: | --- |
 | `Salad` | `Base.Bowl` | `Base.Salad` | 6 | `Make Salad` |
 | `SaladClay` | `Base.ClayBowl` | `Base.SaladClay` | 6 | `Make Salad` |
@@ -10,6 +10,8 @@
 | `FruitSaladClay` | `Base.ClayBowl` | `Base.FruitSaladClay` | 6 | `Make Fruit Salad` |
 
 Источник: `media/scripts/generated/evolvedrecipes.txt:220-254`. Все четыре рецепта имеют `Template = Salad` или `Template = FruitSalad`; у них нет `Cookable = true` и `MinimumWater`, которые явно указаны, например, для супа (`:3-12`) и жаркого (`:135-172`). В установленном `EvolvedRecipe.class` поле `cookable` изначально `false`, а `addItem()` присваивает его результирующей еде. Следовательно, этим рецептам не требуются плита, нагрев и заполнение миски водой.
+
+Проверка в живой игре (`console.txt`, `PLAN: dish=Salad cookware=Base.Bowl recipes=2`) показала, что `getUntranslatedName()` возвращает `Salad` и `FruitSalad`, хотя поле скрипта `Name` содержит `Make Salad` и `Make Fruit Salad`. Первоначальное сопоставление по `Name` находило миску, но ошибочно возвращало `NoCookware`. Для глиняных мисок используется идентификатор рецепта с суффиксом `Clay`, согласованный с именами в скрипте.
 
 `Base.Bowl` и `Base.ClayBowl` — предметы категории Cooking с `FluidContainer`, но сухая миска является основой этих evolved-рецептов. Источник: `media/scripts/generated/items/normal.txt:3763-3786,9602-9625`. Готовые салаты — пища с `ReplaceOnUse = Base.Bowl` / `Base.ClayBowl`; посуда возвращается при употреблении. Источник: `media/scripts/generated/items/food.txt:5681-5721,6326-6358`.
 

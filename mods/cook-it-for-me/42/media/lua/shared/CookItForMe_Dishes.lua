@@ -20,13 +20,15 @@ local DISHES = {
         bases = { "Base.RoastingPan" }, needsWater = false,
     },
     Salad = {
-        recipeName = "Make Salad", label = "UI_CookItForMe_DishSalad",
+        recipeNames = { ["Base.Bowl"] = "Salad", ["Base.ClayBowl"] = "SaladClay" },
+        label = "UI_CookItForMe_DishSalad",
         bases = { "Base.Bowl", "Base.ClayBowl" }, needsWater = false,
         needsHeat = false, allowCookedIngredients = true,
         results = { ["Base.Bowl"] = "Base.Salad", ["Base.ClayBowl"] = "Base.SaladClay" },
     },
     ["Fruit Salad"] = {
-        recipeName = "Make Fruit Salad", label = "UI_CookItForMe_DishFruitSalad",
+        recipeNames = { ["Base.Bowl"] = "FruitSalad", ["Base.ClayBowl"] = "FruitSaladClay" },
+        label = "UI_CookItForMe_DishFruitSalad",
         bases = { "Base.Bowl", "Base.ClayBowl" }, needsWater = false,
         needsHeat = false, allowCookedIngredients = true,
         results = { ["Base.Bowl"] = "Base.FruitSalad", ["Base.ClayBowl"] = "Base.FruitSaladClay" },
@@ -88,9 +90,13 @@ function Catalog.isCookware(fullType)
     return false
 end
 
-function Catalog.matchRecipe(name, dishKey)
+function Catalog.matchRecipe(name, dishKey, baseFullType)
     local dish = DISHES[dishKey]
     if not dish then return false end
+    if dish.recipeNames then
+        local expected = dish.recipeNames[baseFullType]
+        return expected ~= nil and name == expected
+    end
     if dish.recipePrefix then
         return name:sub(1, #dish.recipeName) == dish.recipeName
     end

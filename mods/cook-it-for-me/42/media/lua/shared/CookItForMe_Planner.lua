@@ -98,7 +98,7 @@ local function buildPlan(player, dishKey)
     end
     for i = 0, (recipes and recipes:size() or 0) - 1 do
         local r = recipes:get(i)
-        if Catalog.matchRecipe(r:getUntranslatedName(), dishKey)
+        if Catalog.matchRecipe(r:getUntranslatedName(), dishKey, cookware:getFullType())
             and (not dish.results or dish.results[cookware:getFullType()] == r:getFullResultItem()) then recipe = r end
     end
     if not recipe then return nil, "NoCookware" end

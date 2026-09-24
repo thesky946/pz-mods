@@ -50,7 +50,7 @@
 
 **Interfaces:** `Catalog.DISHES[key].needsHeat`, `.allowCookedIngredients`; `Catalog.allowsFrozen(dish, settings) -> boolean`; `Scanner.collectFood(player, scan, includeCooked) -> collected`.
 
-- [ ] Add failing catalog tests for both labels, both bowl types, recipe matching against `Make Salad` / `Make Fruit Salad`, ordering and no duplicate tabs. Run `lua test_catalog.lua` from `tests/`; expect missing dishes.
+- [ ] Add failing catalog tests for both labels, both bowl types, recipe matching against runtime identifiers `Salad`, `SaladClay`, `FruitSalad`, `FruitSaladClay`, ordering and no duplicate tabs. The script's `Name = Make Salad` / `Make Fruit Salad` is not returned by `getUntranslatedName()`. Run `lua test_catalog.lua` from `tests/`; expect missing dishes.
 - [ ] Add failing scanner test: cooked food is excluded by default and included when `includeCooked == true`. Run `lua test_scanner.lua`; expect cooked item absent.
 - [ ] Add definitions and one frozen-policy function in `Dishes.lua`, with `needsHeat=false` and `allowCookedIngredients=true` for salads. Default hot dishes to heat when the field is absent. Do not add ModData or UI settings.
 - [ ] Add optional `includeCooked` argument to `Scanner.collectFood`; continue excluding rotten, burnt, composite food and non-food in both modes. Run both focused tests; expect pass.

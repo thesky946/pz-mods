@@ -136,7 +136,10 @@ function Env.new(dishKey)
         collectFood = function() return e.collected end,
     }
     e.recipe = {
-        getUntranslatedName = function() return (dishKey == "Salad" or dishKey == "Fruit Salad") and ("Make " .. dishKey) or dishKey end,
+        getUntranslatedName = function()
+            local name = dishKey == "Fruit Salad" and "FruitSalad" or dishKey
+            return e.recipeBaseType == "Base.ClayBowl" and name .. "Clay" or name
+        end,
         getMaxItems = function() return 6 end,
         getItemsList = function()
             if e.metadataError then error("recipe metadata unavailable") end

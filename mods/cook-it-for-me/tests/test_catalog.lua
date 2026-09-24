@@ -6,25 +6,30 @@ local expected = {
     { "Stew", "Base.PotForged", "StewForged", "UI_CookItForMe_DishStew" },
     { "Stir fry", "Base.GridlePan", "Stir fry Forged", "UI_CookItForMe_DishStirFry" },
     { "Roasted Vegetables", "Base.RoastingPan", "Roasted Vegetables", "UI_CookItForMe_DishRoast" },
-    { "Salad", "Base.Bowl", "Make Salad", "UI_CookItForMe_DishSalad" },
-    { "Fruit Salad", "Base.ClayBowl", "Make Fruit Salad", "UI_CookItForMe_DishFruitSalad" },
+    { "Salad", "Base.Bowl", "Salad", "UI_CookItForMe_DishSalad" },
+    { "Salad", "Base.ClayBowl", "SaladClay", "UI_CookItForMe_DishSalad" },
+    { "Fruit Salad", "Base.Bowl", "FruitSalad", "UI_CookItForMe_DishFruitSalad" },
+    { "Fruit Salad", "Base.ClayBowl", "FruitSaladClay", "UI_CookItForMe_DishFruitSalad" },
 }
 for i, entry in ipairs(expected) do
-    assert(Catalog.ALL_DISHES[i] == entry[1])
     assert(Catalog.DISHES[entry[1]].label == entry[4])
-    assert(Catalog.matchRecipe(entry[3], entry[1]))
-    assert(not Catalog.matchRecipe("Other recipe", entry[1]))
+    assert(Catalog.matchRecipe(entry[3], entry[1], entry[2]))
+    assert(not Catalog.matchRecipe("Other recipe", entry[1], entry[2]))
     local pot = Env.item(entry[2])
     assert(Catalog.findCookware({ cookware = { pot } }, entry[1]) == pot)
     assert(Catalog.isCookware(entry[2]))
 end
+assert(table.concat(Catalog.ALL_DISHES, ",") == "Soup,Stew,Stir fry,Roasted Vegetables,Salad,Fruit Salad")
+assert(not Catalog.matchRecipe("SaladClay", "Salad", "Base.Bowl"))
+assert(not Catalog.matchRecipe("Salad", "Salad", "Base.ClayBowl"))
+assert(not Catalog.matchRecipe("FruitSaladClay", "Fruit Salad", "Base.Bowl"))
 assert(not Catalog.matchRecipe("Roasted Vegetables Forged", "Roasted Vegetables"))
 assert(not Catalog.isCookware("Base.Saucepan"))
 assert(Catalog.isCookware("Base.PanForged"))
 assert(Catalog.isCookware("Base.Bowl") and Catalog.isCookware("Base.ClayBowl"))
 assert(Catalog.DISHES.Salad.needsHeat == false and Catalog.DISHES["Fruit Salad"].allowCookedIngredients)
 assert(Catalog.allowsFrozen(Catalog.DISHES.Salad, {}) == true)
-assert(not Catalog.matchRecipe("Make Fruit Salad", "Salad"))
+assert(not Catalog.matchRecipe("FruitSalad", "Salad"))
 local dishes = Catalog.availableDishes({ cookware = { Env.item("Base.Pot"), Env.item("Base.PotForged"), Env.item("Base.Pan") } })
 assert(table.concat(dishes, ",") == "Soup,Stew,Stir fry", "order and no duplicate dishes")
 
