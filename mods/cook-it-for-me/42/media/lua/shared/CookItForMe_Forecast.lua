@@ -74,7 +74,7 @@ function Forecast.calculate(input)
     return -hunger * 100, calories
 end
 
-local function snapshot(player, cookware, recipe, picked)
+local function snapshot(player, cookware, dish, recipe, picked)
     local input = { level = player:getPerkLevel(Perks.Cooking), hunger = 0, calories = 0, items = {}, uniqueRecipes = {} }
     -- Catalog starts with empty cookware; existing dishes need extra state.
     assert(not cookware:haveExtraItems(), "existing dish is unsupported")
@@ -86,7 +86,9 @@ local function snapshot(player, cookware, recipe, picked)
         assert(not seen[item], "repeated physical ingredient")
         seen[item] = true
         assert(instanceof(item, "Food"), "non-food ingredient")
-        assert(not item:isRotten() and not item:isCooked() and not item:isBurnt(), "ingredient state changed")
+        assert(not item:isRotten() and not item:isBurnt()
+            and (not item:isCooked() or (dish.allowCookedIngredients and recipe:needToBeCooked(item))),
+            "ingredient state changed")
         local entry = recipe:getItemsList():get(item:getType())
         if not entry then return end -- incompatible collected spice
         input.items[#input.items + 1] = {
@@ -111,7 +113,7 @@ end
 
 function Forecast.predict(player, cookware, dish, recipe, picked)
     local ok, hunger, calories = pcall(function()
-        return Forecast.calculate(snapshot(player, cookware, recipe, picked))
+        return Forecast.calculate(snapshot(player, cookware, dish, recipe, picked))
     end)
     if not ok or not hunger or hunger <= 0 then
         log("  forecast unavailable: " .. tostring(hunger))

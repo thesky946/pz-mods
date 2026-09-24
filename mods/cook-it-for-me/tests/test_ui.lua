@@ -692,5 +692,21 @@ assert(CookItForMe.planWindow == nil and not canceledCooking,
     "closing the plan clears the window without cancelling an active cooking session")
 local staleWindow = setmetatable({ isCollapsed = false }, CookItForMePlanUI)
 assert(pcall(function() staleWindow:prerender() end), "hot-reloaded renderer must tolerate an old open window")
+local six = {
+    { key = "Soup", failKey = "NoStove" }, { key = "Stew", failKey = "NoStove" },
+    { key = "Stir fry", failKey = "NoStove" }, { key = "Roasted Vegetables", failKey = "NoStove" },
+    { key = "Salad", failKey = "ActionFailed" }, { key = "Fruit Salad", failKey = "ActionFailed" },
+}
+local saladPanel = CookItForMePlanUI:new(0, six, 5)
+saladPanel.width, saladPanel.height = 560, 460
+saladPanel:prerender()
+assert(saladPanel.finishCookingButton.visible == false and settings.finishCooking == false,
+    "salad hides finish toggle without modifying saved choice")
+for _, tab in ipairs(saladPanel.tabButtons) do
+    assert(tab.y + tab.height < saladPanel.cookButton.y, "all six dish cards fit above footer")
+end
+saladPanel.activeIndex = 1
+saladPanel:prerender()
+assert(saladPanel.finishCookingButton.visible == true, "hot dish shows finish toggle again")
 for _, name in ipairs({ "ISCollapsableWindow", "ISButton", "ISLabel", "ISComboBox", "ISSpinBox", "ISTickBox", "ISPanel", "ISTextEntryBox" }) do package.loaded["ISUI/" .. name] = nil end
 print("UI STATE AND LAYOUT TESTS PASSED")

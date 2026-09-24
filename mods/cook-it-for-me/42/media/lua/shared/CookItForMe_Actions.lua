@@ -2,6 +2,7 @@
 require "CookItForMe_Shared"
 if not ISGrabItemAction then require "TimedActions/ISGrabItemAction" end
 local FoodLogic = require "CookItForMe_FoodLogic"
+local Catalog = require "CookItForMe_Dishes"
 local log = CookItForMe.log
 local Actions = {}
 Actions.REVISION = "reliable-actions-4"
@@ -182,19 +183,32 @@ function Actions.new(session, fail)
         local original = sourceOf(ingredient)
         if not original then fail("ItemMissing"); return end
         take(player, ingredient, function()
-            if ingredient:isRotten() or ingredient:isBurnt() or ingredient:isCooked() then
+            local dish = session.plan.dish
+            local inventory = player:getInventory()
+            if session.pot:getContainer() ~= inventory or not inventory:contains(session.pot) then
+                fail("ItemMissing"); return
+            end
+            if session.addedCount == 0 and not Catalog.isUsableBase(dish, session.pot) then
+                fail("NoEmptyBowl"); return
+            end
+            if ingredient:isRotten() or ingredient:isBurnt()
+                or (dish.allowCookedIngredients and not recipe:needToBeCooked(ingredient))
+                or (not dish.allowCookedIngredients and ingredient:isCooked()) then
                 fail("PlanChanged"); return
             end
+            local allowFrozen = Catalog.allowsFrozen(dish, session.plan.settings)
             local usable = CookItForMe.withFrozenRecipe(recipe, function()
                 return recipe:isItemUsableInRecipe(player, session.pot, ingredient:getID())
-            end)
+            end, allowFrozen)
             if not usable then fail("PlanChanged"); return end
             local frozen = ingredient:isFrozen()
             session.stage = "adding"
             local previous = session.pot
+            local previousExtra = previous:getExtraItems()
+            local previousExtraCount = previousExtra and previousExtra:size() or 0
             local result = CookItForMe.withFrozenRecipe(recipe, function()
                 return recipe:addItem(previous, ingredient, player)
-            end)
+            end, allowFrozen)
             -- addItem must never be retried: it may have already consumed the ingredient.
             session.pot = result or previous
             local inv = player:getInventory()
@@ -205,6 +219,13 @@ function Actions.new(session, fail)
             end
             ISAddItemInRecipe.checkName(session.pot, recipe)
             ISAddItemInRecipe.checkTemperature(session.pot, ingredient, recipe)
+            if dish.results then
+                local extra = session.pot:getExtraItems()
+                if session.pot:getFullType() ~= recipe:getFullResultItem()
+                    or (not ingredient:isSpice() and (not extra or extra:size() <= previousExtraCount)) then
+                    fail("ActionFailed"); return
+                end
+            end
             if ingredient:isSpice() then
                 local spices = session.pot:getSpices()
                 local found = false

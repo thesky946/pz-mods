@@ -7,6 +7,7 @@ local tests = {
     "test_foodlogic.lua",
     "test_plan_edit.lua",
     "test_cook.lua",
+    "test_salads.lua",
     "test_lifecycle.lua",
     "test_session.lua",
     "test_catalog.lua",

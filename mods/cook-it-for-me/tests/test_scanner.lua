@@ -72,5 +72,13 @@ e.inv:AddItem(bag)
 local pot = inner:AddItem(Env.item("Base.Pot"))
 local result = Scanner.collectFood(e.player, { containers = { inner }, floorItems = {} })
 assert(#result.cookware == 1 and result.cookware[1] == pot, "nested inventory is visited once")
+local cooked = inner:AddItem(Env.item("Base.Potato"))
+cooked.cooked = true
+instanceof = function(object, class) return class == "Food" and object == cooked end
+isItemFood = function() return true end
+assert(#Scanner.collectFood(e.player, { containers = { inner }, floorItems = {} }).foods == 0,
+    "hot meals still exclude cooked food")
+local saladFoods = Scanner.collectFood(e.player, { containers = { inner }, floorItems = {} }, true).foods
+assert(#saladFoods == 1 and saladFoods[1] == cooked, "salad scan includes cooked candidate food")
 getCell = nil
 print("SCANNER TESTS PASSED")

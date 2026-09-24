@@ -3,7 +3,7 @@
 [![Steam Workshop](https://img.shields.io/badge/Steam_Workshop-Subscribe-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3801601464)
 [![Checks](https://github.com/thesky946/pz-mods/actions/workflows/checks.yml/badge.svg)](https://github.com/thesky946/pz-mods/actions/workflows/checks.yml)
 
-Automatic meal preparation for Project Zomboid Build 42. Pick a meal and approve the plan; your survivor fetches cookware, water, ingredients, and spices. By default, the mod also cooks the meal using vanilla timed actions. Turn off **Finish cooking until the dish is ready** to stop after adding the ingredients and leave the dish uncooked.
+Automatic meal preparation for Project Zomboid Build 42. Pick a meal and approve the plan; your survivor fetches cookware, ingredients, spices, and water when needed. Hot meals use vanilla timed actions for heating by default; turn off **Finish cooking** to stop after adding ingredients. Salads are ready after assembly and never use heat.
 
 ![Cook It For Me plan window](workshop/preview.png)
 
@@ -11,8 +11,8 @@ Automatic meal preparation for Project Zomboid Build 42. Pick a meal and approve
 
 - Preview the complete meal plan before anything moves.
 - Perform the workflow through real vanilla timed actions instead of instant crafting.
-- Cook soup, stew, stir-fry, and roasted vegetables using vanilla evolved recipes.
-- Choose whether to finish cooking after all ingredients are added; the preference persists between plans.
+- Cook soup, stew, stir-fry, and roasted vegetables, or assemble ready-to-eat salads using vanilla evolved recipes.
+- Choose whether to finish heating hot meals after adding ingredients; the preference persists between plans and is hidden on salad tabs.
 - Stop safely when danger approaches or the world no longer matches the approved plan.
 - Track stove ownership, cooking progress, and the exact dish object through completion.
 - English, Russian, Spanish, Brazilian Portuguese, Simplified Chinese, French, and Turkish UI.
@@ -34,11 +34,13 @@ Build 42 and single-player only. The mod adds no items or recipes and is safe to
 | Stew | Pot or Forged Pot | Yes |
 | Stir-fry | Frying Pan, Forged Pan, or Griddle Pan | No |
 | Roasted Vegetables | Roasting Pan | No |
+| Salad | Bowl or Clay Bowl | No |
+| Fruit Salad | Bowl or Clay Bowl | No |
 
 ## Requirements and limits
 
-- A stove in range to open the planner. The default cooking mode also requires a reachable powered non-microwave stove; preparation-only mode does not check or use a heat source.
-- Compatible cookware and raw ingredients within the configured search radius.
+- The right-click entry appears near a stove; the configured hotkey opens the planner elsewhere. Hot meals need a reachable powered non-microwave stove when finish cooking is enabled. Salads never require or use a stove.
+- Compatible cookware and ingredients within the configured search radius. Salads need an empty bowl and can use cooked ingredients when the vanilla recipe requires them.
 - A reachable water source for soup and stew.
 - Build 42 single-player; multiplayer execution is deliberately blocked because no network protocol is implemented.
 - Other mods that replace the tracked dish object during cooking are not guessed automatically; the session fails safely instead.
@@ -52,10 +54,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for module boundaries and runtime contrac
 ## Ingredient selection
 
 - Search the player inventory, nested bags, reachable containers, and nearby floor items.
-- Skip rotten, cooked, burnt, and already-composed food.
+- Skip rotten, burnt, and already-composed food. Cooked food is considered for salads only when the vanilla recipe accepts its cooked state; hot meals continue to skip it.
 - Use no more than two portions of one item type and respect the vanilla recipe's ingredient limit.
 - Choose maximum calories, minimum calories, or maximum hunger relief.
-- Allow frozen food with a cooking-time penalty proportional to the frozen share of the meal.
+- Allow frozen food. Hot meals apply a cooking-time penalty proportional to the frozen share. Salads have no heating step; a frozen ingredient can become an unfrozen salad immediately when vanilla replaces the bowl.
 
 ## Development
 

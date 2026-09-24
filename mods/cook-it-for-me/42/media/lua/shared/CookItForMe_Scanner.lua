@@ -138,7 +138,7 @@ end
 -- Исключаются: протухшее, уже приготовленное, сгоревшее; не-еда
 -- (антибиотики/сигареты/мусор в B42 — тоже класс Food, отсекаются ванильным isItemFood).
 -- Замороженные допускаются.
-function Scanner.collectFood(player, scan)
+function Scanner.collectFood(player, scan, includeCooked)
     local out = { foods = {}, spices = {}, cookware = {} }
 
     local seenItems, seenContainers = {}, {}
@@ -161,7 +161,7 @@ function Scanner.collectFood(player, scan)
             end
             return
         end
-        if item:isRotten() or item:isCooked() or item:isBurnt() then return end
+        if item:isRotten() or item:isBurnt() or (item:isCooked() and not includeCooked) then return end
         if item:isSpice() then
             table.insert(out.spices, item)
             return

@@ -66,7 +66,8 @@ function Env.item(fullType, calories)
     function item:getSpices() return Env.list(self.spices) end
     function item:setMinutesToCook(v) self.minutes = v end
     function item:getFluidContainer()
-        return { getCapacity = function() return 2 end, getAmount = function() return item.water or 0 end, adjustSpecificFluidAmount = function() end }
+        return { getCapacity = function() return 2 end, getAmount = function() return item.water or 0 end,
+            isEmpty = function() return (item.water or 0) == 0 end, adjustSpecificFluidAmount = function() end }
     end
     function item:createCloneItem()
         local clone = Env.item(self.fullType, self.calories)
@@ -119,11 +120,12 @@ function Env.new(dishKey)
         getSquare = function() return e.square end,
         isTaintedWater = function() return false end,
     }
-    local bases = { Soup = "Base.Pot", Stew = "Base.Pot", ["Stir fry"] = "Base.Pan", ["Roasted Vegetables"] = "Base.RoastingPan" }
+    local bases = { Soup = "Base.Pot", Stew = "Base.Pot", ["Stir fry"] = "Base.Pan", ["Roasted Vegetables"] = "Base.RoastingPan",
+        Salad = "Base.Bowl", ["Fruit Salad"] = "Base.ClayBowl" }
     dishKey = dishKey or "Soup"
     e.pot = e.source:AddItem(Env.item(bases[dishKey]))
     e.pot.nonFood = true
-    e.food = e.source:AddItem(Env.item("Base.Carrot", 40))
+    e.food = e.source:AddItem(Env.item(dishKey == "Fruit Salad" and "Base.Apple" or "Base.Carrot", 40))
     e.spice = e.source:AddItem(Env.item("Base.Salt", 0))
     e.spice.spice = true
     e.spice.leftover = true
@@ -134,25 +136,32 @@ function Env.new(dishKey)
         collectFood = function() return e.collected end,
     }
     e.recipe = {
-        getUntranslatedName = function() return dishKey end,
+        getUntranslatedName = function() return (dishKey == "Salad" or dishKey == "Fruit Salad") and ("Make " .. dishKey) or dishKey end,
         getMaxItems = function() return 6 end,
         getItemsList = function()
             if e.metadataError then error("recipe metadata unavailable") end
             return { get = function(_, name)
-                if name == "Carrot" or name == "Salt" then
-                    return { getUse = function() return name == "Carrot" and 10 or 1 end }
+                if name == e.food:getType() or name == "Salt" or (dishKey == "Salad" and name == "Potato") then
+                    return { getUse = function() return name == "Salt" and 1 or 10 end }
                 end
             end }
+        end,
+        needToBeCooked = function(_, item)
+            local required = item:getType() == "Potato"
+            return not required or item:isCooked() or item:isBurnt()
         end,
         isCookable = function() return true end,
         isAllowFrozenItem = function() return e.allowFrozen or false end,
         setAllowFrozenItem = function(_, v) e.allowFrozen = v end,
         getPossibleItems = function() return Env.list(e.collected.foods) end,
         getItemsCanBeUse = function() return Env.list(e.collected.foods) end,
-        getResultItem = function() return "CookedDish" end,
-        getFullResultItem = function() return "Base.CookedDish" end,
+        getResultItem = function()
+            return dishKey == "Salad" and (e.recipeBaseType == "Base.ClayBowl" and "SaladClay" or "Salad")
+                or (dishKey == "Fruit Salad" and (e.recipeBaseType == "Base.ClayBowl" and "FruitSaladClay" or "FruitSalad") or "CookedDish")
+        end,
+        getFullResultItem = function() return "Base." .. e.recipe:getResultItem() end,
         getAddIngredientSound = function() return "AddItemInRecipe" end,
-        isItemUsableInRecipe = function(_, _, _, item) return item ~= e.reject end,
+        isItemUsableInRecipe = function(_, _, _, item) return item ~= e.reject and (not item:isFrozen() or e.allowFrozen) end,
         addItem = function(_, pot, ingredient)
             if pot.clone then
                 if not pot.container then e.inv:AddItem(pot) end
@@ -164,7 +173,7 @@ function Env.new(dishKey)
             end
             if not pot.clone and pot.nonFood then
                 local old = pot
-                pot = Env.item("Base.CookedDish", 0)
+                pot = Env.item(e.recipe:getFullResultItem(), 0)
                 if old.container then old.container:Remove(old) end
                 e.inv:AddItem(pot)
                 e.pot = pot
@@ -179,7 +188,10 @@ function Env.new(dishKey)
             return pot
         end,
     }
-    RecipeManager = { getEvolvedRecipe = function() return Env.list(e.noRecipe and {} or { e.recipe }) end }
+    RecipeManager = { getEvolvedRecipe = function(cookware)
+        e.recipeBaseType = cookware:getFullType()
+        return Env.list(e.noRecipe and {} or { e.recipe })
+    end }
     ArrayList = { new = function() return Env.list() end }
     Fluid, Perks = { Water = 1 }, { Cooking = 1 }
     instanceof = function(item, class) return class == "Food" and not item.nonFood end

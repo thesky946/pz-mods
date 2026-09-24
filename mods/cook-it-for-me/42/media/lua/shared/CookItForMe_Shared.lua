@@ -50,10 +50,10 @@ function CookItForMe.diagnostic(message)
     print(LOG_TAG .. " " .. tostring(message))
 end
 
-function CookItForMe.withFrozenRecipe(recipe, callback)
+function CookItForMe.withFrozenRecipe(recipe, callback, allowFrozen)
     local previous = recipe:isAllowFrozenItem()
     local ok, value = pcall(function()
-        recipe:setAllowFrozenItem(true)
+        recipe:setAllowFrozenItem(allowFrozen ~= false)
         return callback()
     end)
     recipe:setAllowFrozenItem(previous)

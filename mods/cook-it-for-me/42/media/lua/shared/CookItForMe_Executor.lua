@@ -59,11 +59,20 @@ function Executor.new(session)
         for _, item in ipairs(plan.picked.spices) do
             steps[#steps + 1] = function(next) actions.add(player, plan.recipe, item, next) end
         end
-        if plan.settings.finishCooking then
+        if plan.needsHeat then
             steps[#steps + 1] = function(next) actions.toStove(player, plan.scan.stove, next) end
             steps[#steps + 1] = function() actions.heat(player, plan.scan.stove, plan.recipe, plan.settings) end
         else
             steps[#steps + 1] = function()
+                if plan.dish.needsHeat == false then
+                    local result, inventory = session.pot, player:getInventory()
+                    if session.addedCount == 0 then execution.fail("NotEnough"); return end
+                    if not result or result:getFullType() ~= plan.recipe:getFullResultItem()
+                        or result:getContainer() ~= inventory or not inventory:contains(result)
+                        or not result:haveExtraItems() then
+                        execution.fail("ActionFailed"); return
+                    end
+                end
                 finish("success", "PreparationComplete")
                 playCompletionSound(player)
             end

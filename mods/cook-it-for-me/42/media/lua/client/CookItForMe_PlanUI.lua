@@ -1429,7 +1429,12 @@ function CookItForMePlanUI:prerender()
 
     -- Left navigation is deliberately fixed and scannable: the player sees
     -- every possible dish and its availability before reading a single line.
-    local railH = math.min(math.max(px(80), btnY - railY - px(8)), px(62) + #self.tabButtons * px(54))
+    local tabPitch = px(54)
+    if #self.tabButtons > 1 then
+        local availablePitch = math.floor((btnY - railY - px(50) - px(48) - px(16)) / (#self.tabButtons - 1))
+        if availablePitch < tabPitch then tabPitch = availablePitch end
+    end
+    local railH = math.min(math.max(px(80), btnY - railY - px(8)), px(62) + #self.tabButtons * tabPitch)
     drawNeatSurface(self, "media/ui/NeatUI/DefaultPanel/CategoryBG.png", railX, railY, railW, railH,
         1, THEME.panel.r, THEME.panel.g, THEME.panel.b)
     local railTitle = getText("UI_CookItForMe_PlanDish", ""):gsub(":%s*$", "")
@@ -1439,7 +1444,7 @@ function CookItForMePlanUI:prerender()
         button:setX(railX + px(8))
         -- The game font's visual descender extends below its draw origin.
         -- Reserve a whole header row before the first navigation card.
-        button:setY(railY + px(50) + (i - 1) * px(54))
+        button:setY(railY + px(50) + (i - 1) * tabPitch)
         button:setWidth(railW - px(16))
         button:setHeight(px(48))
     end
@@ -1502,6 +1507,10 @@ function CookItForMePlanUI:prerender()
     self.finishCookingButton:setWidth(settingButtonW)
     self.soundButton:setHeight(px(26))
     self.finishCookingButton:setHeight(px(26))
+    local activeDish = self.entries[self.activeIndex] and Catalog.DISHES[self.entries[self.activeIndex].key]
+    local isColdDish = activeDish and activeDish.needsHeat == false
+    self.finishCookingButton:setVisible(not isColdDish)
+    if isColdDish then self.soundButton:setWidth(settingButtonW * 2 + settingButtonGap) end
     self:drawText(truncateText(radiusLabel, math.max(px(20), self.radiusButtons[1].x - mainX - px(20)), UIFont.Small), mainX + px(12),
         settingsY + (compactHeight and px(72) or px(76)), THEME.secondary.r, THEME.secondary.g, THEME.secondary.b, 1, UIFont.Small)
     self.radiusSpin:setWidth(px(62))

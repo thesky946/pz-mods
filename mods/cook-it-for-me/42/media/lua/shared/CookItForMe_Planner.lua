@@ -8,11 +8,15 @@ local Catalog = require "CookItForMe_Dishes"
 local Forecast = require "CookItForMe_Forecast"
 local Planner = {}
 
-local function compatible(recipe, player, item)
+local function compatible(recipe, player, item, dish, settings)
     local entry = recipe:getItemsList():get(item:getType())
     if not entry or entry:getUse() < 0 then return false end
     if entry.getFullType and entry:getFullType() ~= item:getFullType() then return false end
     if item.isNoRecipes and item:isNoRecipes(player) then return false end
+    if dish.allowCookedIngredients then
+        if not recipe:needToBeCooked(item) then return false end
+    elseif item:isCooked() then return false end
+    if item:isFrozen() and not Catalog.allowsFrozen(dish, settings) then return false end
     return true
 end
 
@@ -48,20 +52,24 @@ end
 -- Возвращает plan или nil + ключ ошибки.
 local function buildPlan(player, dishKey)
     local settings = CookItForMe.getSettings(player)
-    local scan = Scanner.scanAround(player, settings.radius, settings.finishCooking)
-    local collected = Scanner.collectFood(player, scan)
+    local dish = Catalog.DISHES[dishKey]
+    if not dish then return nil, "NotEnough" end
+    local needsHeat = settings.finishCooking and dish.needsHeat ~= false
+    local scan = Scanner.scanAround(player, settings.radius, needsHeat)
+    local collected = Scanner.collectFood(player, scan, dish.allowCookedIngredients)
     log(string.format("PLAN SCAN: stove=%s sink=%s containers=%d floorItems=%d radius=%d",
         scan.stove and 1 or 0, scan.sink and 1 or 0, #scan.containers, #scan.floorItems, settings.radius))
 
-    local dish = Catalog.DISHES[dishKey]
-    if not dish then return nil, "NotEnough" end
+    local cookware = Catalog.findCookware(collected, dishKey, true)
+    if not cookware then
+        if Catalog.findCookware(collected, dishKey) then return nil, "NoEmptyBowl" end
+        return nil, "NoCookware"
+    end
 
-    if settings.finishCooking then
+    if needsHeat then
         local stove = scan.stove
         if not stove then return nil, "NoStove" end
         if stove:isBroken() then return nil, "NoPower" end
-        local cookware = Catalog.findCookware(collected, dishKey)
-        if not cookware then return nil, "NoCookware" end
         if not stove:getContainer():hasRoomFor(player, cookware) then
             local alternative
             for _, candidate in ipairs(scan.stoves or {}) do
@@ -71,9 +79,6 @@ local function buildPlan(player, dishKey)
             scan.stove = alternative
         end
     end
-
-    local cookware = Catalog.findCookware(collected, dishKey)
-    if not cookware then return nil, "NoCookware" end
 
     if dish.needsWater then
         if not scan.sink then return nil, "NoSink" end
@@ -93,7 +98,8 @@ local function buildPlan(player, dishKey)
     end
     for i = 0, (recipes and recipes:size() or 0) - 1 do
         local r = recipes:get(i)
-        if Catalog.matchRecipe(r:getUntranslatedName(), dishKey) then recipe = r end
+        if Catalog.matchRecipe(r:getUntranslatedName(), dishKey)
+            and (not dish.results or dish.results[cookware:getFullType()] == r:getFullResultItem()) then recipe = r end
     end
     if not recipe then return nil, "NoCookware" end
 
@@ -101,10 +107,10 @@ local function buildPlan(player, dishKey)
     -- Read metadata without changing the shared recipe or requiring water in the preview.
     local validFoods, validSpices = {}, {}
     for _, item in ipairs(collected.foods) do
-        if compatible(recipe, player, item) then validFoods[#validFoods + 1] = item end
+        if compatible(recipe, player, item, dish, settings) then validFoods[#validFoods + 1] = item end
     end
     for _, item in ipairs(collected.spices) do
-        if compatible(recipe, player, item) then validSpices[#validSpices + 1] = item end
+        if compatible(recipe, player, item, dish, settings) then validSpices[#validSpices + 1] = item end
     end
     local direction = FoodLogic.decideDirection(player:getNutrition(), settings)
     -- специи: до 4 = 2 базовых (соль/перец) + 2 по направлению
@@ -130,6 +136,7 @@ local function buildPlan(player, dishKey)
         player = player, sources = {}, rows = {}, nextRowId = 1,
         dishKey = dishKey,
         dish = dish,
+        needsHeat = needsHeat,
         cookware = cookware,
         recipe = recipe,
         picked = picked,
@@ -184,8 +191,8 @@ end
 function Planner.alternatives(player, plan, id)
     local row = findRow(plan, id)
     if not row then return {} end
-    local scan = Scanner.scanAround(player, CookItForMe.getSettings(player).radius, plan.settings.finishCooking)
-    local collected = Scanner.collectFood(player, scan)
+    local scan = Scanner.scanAround(player, CookItForMe.getSettings(player).radius, plan.needsHeat)
+    local collected = Scanner.collectFood(player, scan, plan.dish.allowCookedIngredients)
     local pool = row.kind == "food" and collected.foods or collected.spices
     local used, typeCount = {}, {}
     for _, other in ipairs(plan.rows) do
@@ -203,7 +210,7 @@ function Planner.alternatives(player, plan, id)
         -- B42's isItemUsableInRecipe searches only that inventory when called
         -- without containers, so it rejects valid nearby items at preview time.
         if item ~= row.item and not used[item] and (typeCount[ft] or 0) < limit
-            and compatible(plan.recipe, player, item) then
+            and compatible(plan.recipe, player, item, plan.dish, plan.settings) then
             result[#result + 1] = item
         end
     end
@@ -236,7 +243,7 @@ end
 function Planner.rowAvailable(player, plan, row, available)
     if not row.item then return nil end
     local item, source = row.item, plan.sources[row.item]
-    if not source or item:isRotten() or item:isBurnt() or item:isCooked() then return false end
+    if not source or item:isRotten() or item:isBurnt() then return false end
     local world = item.getWorldItem and item:getWorldItem() or nil
     if world ~= source.world or (not world and item:getContainer() ~= source.container) then return false end
     if world then
@@ -244,13 +251,13 @@ function Planner.rowAvailable(player, plan, row, available)
     elseif not source.container or not source.container:contains(item) then return false end
     if source.calories and item:getCalories() ~= source.calories then return false end
     if source.hunger and item:getHungerChange() ~= source.hunger then return false end
-    if not compatible(plan.recipe, player, item) then return false end
+    if not compatible(plan.recipe, player, item, plan.dish, plan.settings) then return false end
     return available[item] == true
 end
 
 function Planner.rowAvailability(player, plan)
-    local scan = Scanner.scanAround(player, CookItForMe.getSettings(player).radius, plan.settings.finishCooking)
-    local collected = Scanner.collectFood(player, scan)
+    local scan = Scanner.scanAround(player, CookItForMe.getSettings(player).radius, plan.needsHeat)
+    local collected = Scanner.collectFood(player, scan, plan.dish.allowCookedIngredients)
     local available = {}
     for _, list in ipairs({ collected.foods, collected.spices }) do
         for _, item in ipairs(list) do available[item] = true end
@@ -273,6 +280,7 @@ end
 
 function Planner.validate(player, plan, rowStatus)
     if plan.player ~= player then return false, "PlanChanged" end
+    if not Catalog.isUsableBase(plan.dish, plan.cookware) then return false, "NoEmptyBowl" end
     if #plan.picked.items == 0 then return false, "NotEnough" end
     rowStatus = rowStatus or Planner.rowAvailability(player, plan)
     for _, row in ipairs(plan.rows) do
@@ -284,12 +292,13 @@ function Planner.validate(player, plan, rowStatus)
         if world then
             if not world:getSquare() then return false, "ItemMissing" end
         elseif not source.container or not source.container:contains(item) then return false, "ItemMissing" end
-        if item ~= plan.cookware and (item:isRotten() or item:isBurnt() or item:isCooked()) then return false, "PlanChanged" end
+        if item ~= plan.cookware and (item:isRotten() or item:isBurnt()
+            or not compatible(plan.recipe, player, item, plan.dish, plan.settings)) then return false, "PlanChanged" end
         if source.calories and item:getCalories() ~= source.calories then return false, "PlanChanged" end
         if source.hunger and item:getHungerChange() ~= source.hunger then return false, "PlanChanged" end
     end
-    local scan = Scanner.scanAround(player, CookItForMe.getSettings(player).radius, plan.settings.finishCooking)
-    local collected = Scanner.collectFood(player, scan)
+    local scan = Scanner.scanAround(player, CookItForMe.getSettings(player).radius, plan.needsHeat)
+    local collected = Scanner.collectFood(player, scan, plan.dish.allowCookedIngredients)
     local available = {}
     for _, list in ipairs({collected.cookware, collected.foods, collected.spices}) do
         for _, item in ipairs(list) do available[item] = true end
@@ -300,7 +309,7 @@ function Planner.validate(player, plan, rowStatus)
         for _, value in ipairs(list) do if value == target then return true end end
         return false
     end
-    if plan.settings.finishCooking then
+    if plan.needsHeat then
         local stove = plan.scan.stove
         if not contains(scan.stoves, stove, scan.stove) then return false, "PlanChanged" end
         if stove:isBroken() or not stove:getContainer():isPowered() then return false, "NoPower" end
